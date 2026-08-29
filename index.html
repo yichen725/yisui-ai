@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>逸碎AI</title>
+    <title>逸碎AI - 智能助手</title>
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <style>
         * {
@@ -14,160 +14,97 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f7f8fa;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            color: #1f2329;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
         }
 
         .card {
-            background: white;
-            border-radius: 24px;
-            padding: 48px 40px;
-            max-width: 420px;
-            width: 100%;
+            background: #ffffff;
+            border: 1px solid #e5e6eb;
+            border-radius: 12px;
+            padding: 40px 36px;
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .logo {
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #3370ff 0%, #5b8def 100%);
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: #3370ff;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            font-weight: bold;
-            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
             margin-bottom: 20px;
         }
 
         h1 {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1f2329;
+            font-size: 24px;
+            font-weight: 600;
             margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
-            font-size: 15px;
+            font-size: 14px;
             color: #646a73;
-            margin-bottom: 36px;
-            line-height: 1.5;
+            margin-bottom: 32px;
+            line-height: 1.6;
         }
 
         .btn {
             display: block;
             width: 100%;
-            padding: 16px;
+            padding: 14px 20px;
             border: none;
-            border-radius: 14px;
-            font-size: 16px;
-            font-weight: 600;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             text-decoration: none;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
+            font-family: inherit;
         }
 
         .btn-primary {
             background: #3370ff;
-            color: white;
+            color: #ffffff;
         }
 
         .btn-primary:hover {
             background: #2860e1;
-            transform: translateY(-2px);
         }
 
-        .btn-secondary {
-            background: #f5f6f7;
+        .btn-outline {
+            background: #ffffff;
             color: #1f2329;
-        }
-
-        .btn-secondary:hover {
-            background: #e8eaed;
-            transform: translateY(-2px);
-        }
-
-        .download-options {
-            display: none;
-            margin-top: 12px;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 12px;
-            text-align: left;
-        }
-
-        .download-options.show {
-            display: block;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .download-options p {
-            font-size: 13px;
-            color: #646a73;
-            margin-bottom: 10px;
-        }
-
-        .download-link {
-            display: block;
-            padding: 10px 14px;
-            background: white;
             border: 1px solid #e5e6eb;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #3370ff;
-            text-decoration: none;
-            margin-bottom: 8px;
-            transition: all 0.2s;
         }
 
-        .download-link:hover {
+        .btn-outline:hover {
             border-color: #3370ff;
-            background: #f0f5ff;
-        }
-
-        .download-link:last-child {
-            margin-bottom: 0;
-        }
-
-        .download-link .tag {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #e6f0ff;
             color: #3370ff;
-            border-radius: 10px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
-
-        .btn-icon {
-            margin-right: 8px;
         }
 
         .divider {
             display: flex;
             align-items: center;
-            margin: 24px 0;
+            margin: 28px 0 20px;
             color: #999;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .divider::before,
@@ -185,71 +122,58 @@
         .features {
             display: flex;
             justify-content: center;
-            gap: 24px;
-            margin-top: 8px;
+            gap: 32px;
         }
 
         .feature {
             font-size: 13px;
-            color: #999;
+            color: #646a73;
         }
 
-        .feature span {
-            margin-right: 4px;
+        .feature strong {
+            color: #1f2329;
+            font-weight: 600;
         }
 
-        .version {
-            margin-top: 28px;
+        .footer {
+            text-align: center;
+            margin-top: 24px;
             font-size: 12px;
-            color: #bbb;
+            color: #999;
         }
 
         @media (max-width: 480px) {
             .card {
-                padding: 36px 28px;
-            }
-
-            h1 {
-                font-size: 24px;
+                padding: 32px 24px;
             }
 
             .features {
                 flex-direction: column;
-                gap: 8px;
+                gap: 12px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="logo">逸</div>
-        <h1>逸碎AI</h1>
-        <p class="subtitle">你的智能助手<br>多人格 · 图片识别 · 无限制对话</p>
+    <div class="container">
+        <div class="card">
+            <div class="logo">逸</div>
+            <h1>逸碎AI</h1>
+            <p class="subtitle">智能对话助手<br>支持多人格、图片识别、无限制对话</p>
 
-        <a href="app.html" class="btn btn-primary">
-            <span class="btn-icon">🌐</span>网页版立即使用
-        </a>
+            <a href="app.html" class="btn btn-primary">网页版使用</a>
+            <a href="download.html" class="btn btn-outline">下载客户端</a>
 
-        <a href="download.html" class="btn btn-secondary">
-            <span class="btn-icon">📱</span>下载APP安装包
-        </a>
+            <div class="divider"><span>功能</span></div>
 
-        <div class="divider"><span>核心功能</span></div>
-
-        <div class="features">
-            <div class="feature"><span>🎭</span>5种人格</div>
-            <div class="feature"><span>🖼️</span>图片识别</div>
-            <div class="feature"><span>💬</span>无限制</div>
+            <div class="features">
+                <div class="feature"><strong>5种</strong> 人格</div>
+                <div class="feature"><strong>图片</strong> 识别</div>
+                <div class="feature"><strong>无限</strong> 对话</div>
+            </div>
         </div>
 
-        <div class="version">v1.0.0</div>
+        <div class="footer">v1.0.0</div>
     </div>
-
-    <script>
-        function toggleDownload() {
-            const options = document.getElementById('downloadOptions');
-            options.classList.toggle('show');
-        }
-    </script>
 </body>
 </html>
