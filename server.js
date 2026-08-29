@@ -14,6 +14,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const CARDS_FILE = path.join(__dirname, 'cards.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
+const CHATS_FILE = path.join(__dirname, 'chats.json');
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-pro';
 
 // 中间件
@@ -165,6 +167,87 @@ function writeCards(cards) {
   }
 }
 
+// ============ 用户系统工具函数 ============
+function readUsers() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) return [];
+    const data = fs.readFileSync(USERS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('读取用户文件失败:', e.message);
+    return [];
+  }
+}
+
+function writeUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('写入用户文件失败:', e.message);
+    return false;
+  }
+}
+
+// 简单的密码哈希（生产环境建议用 bcrypt）
+function hashPassword(password) {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(password + 'yisui_salt').digest('hex');
+}
+
+// 生成用户 token
+function generateUserToken(userId) {
+  const crypto = require('crypto');
+  return crypto.createHash('md5').update(userId + Date.now() + Math.random()).digest('hex');
+}
+
+// ============ 聊天记录工具函数 ============
+function readChats() {
+  try {
+    if (!fs.existsSync(CHATS_FILE)) return [];
+    const data = fs.readFileSync(CHATS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('读取聊天记录文件失败:', e.message);
+    return [];
+  }
+}
+
+function writeChats(chats) {
+  try {
+    fs.writeFileSync(CHATS_FILE, JSON.stringify(chats, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('写入聊天记录文件失败:', e.message);
+    return false;
+  }
+}
+
+// 保存单条聊天消息
+function saveChatMessage(userId, role, content, model) {
+  try {
+    const chats = readChats();
+    const message = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      userId: userId || 'anonymous',
+      role: role,
+      content: content,
+      model: model || '',
+      timestamp: new Date().toISOString()
+    };
+    chats.push(message);
+    // 只保留最近10000条记录，避免文件过大
+    if (chats.length > 10000) {
+      chats.splice(0, chats.length - 10000);
+    }
+    writeChats(chats);
+    return message;
+  } catch (e) {
+    console.error('保存聊天记录失败:', e.message);
+    return null;
+  }
+}
+
 // ============ 接口 1：获取可用模型列表 ============
 /**
  * GET /models
@@ -200,6 +283,117 @@ app.post('/verify', (req, res) => {
   }
 });
 
+// ============ 接口 2.5：用户注册 ============
+app.post('/api/user/register', (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({ success: false, message: '用户名长度需在3-20个字符之间' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: '密码长度不能少于6位' });
+    }
+    const users = readUsers();
+    if (users.find(u => u.username === username)) {
+      return res.status(400).json({ success: false, message: '用户名已存在' });
+    }
+    const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const token = generateUserToken(userId);
+    const newUser = {
+      id: userId,
+      username: username,
+      password: hashPassword(password),
+      email: email || '',
+      token: token,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      status: 'active'
+    };
+    users.push(newUser);
+    writeUsers(users);
+    return res.json({
+      success: true,
+      message: '注册成功',
+      data: {
+        userId: userId,
+        username: username,
+        token: token
+      }
+    });
+  } catch (error) {
+    console.error('用户注册出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 接口 2.6：用户登录 ============
+app.post('/api/user/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+    const users = readUsers();
+    const user = users.find(u => u.username === username);
+    if (!user) {
+      return res.status(401).json({ success: false, message: '用户名或密码错误' });
+    }
+    if (user.password !== hashPassword(password)) {
+      return res.status(401).json({ success: false, message: '用户名或密码错误' });
+    }
+    if (user.status === 'banned') {
+      return res.status(403).json({ success: false, message: '账号已被封禁' });
+    }
+    const token = generateUserToken(user.id);
+    user.token = token;
+    user.lastLoginAt = new Date().toISOString();
+    writeUsers(users);
+    return res.json({
+      success: true,
+      message: '登录成功',
+      data: {
+        userId: user.id,
+        username: user.username,
+        token: token
+      }
+    });
+  } catch (error) {
+    console.error('用户登录出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 接口 2.7：获取用户信息 ============
+app.get('/api/user/info', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+    if (!token) {
+      return res.status(401).json({ success: false, message: '未登录' });
+    }
+    const users = readUsers();
+    const user = users.find(u => u.token === token);
+    if (!user) {
+      return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt
+      }
+    });
+  } catch (error) {
+    console.error('获取用户信息出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
 // ============ 接口 3：统一聊天代理（根据 model 自动路由） ============
 /**
  * POST /v1/chat/completions
@@ -217,6 +411,23 @@ app.post('/verify', (req, res) => {
 app.post('/v1/chat/completions', async (req, res) => {
   try {
     const { messages, temperature, max_tokens, stream } = req.body;
+    // 获取用户信息（用于聊天记录存储）
+    const userToken = req.headers.authorization?.replace('Bearer ', '') || req.body.userToken || '';
+    let userId = 'anonymous';
+    if (userToken) {
+      const users = readUsers();
+      const user = users.find(u => u.token === userToken);
+      if (user) userId = user.id;
+    }
+    // 保存用户消息
+    const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+    if (lastUserMsg) {
+      let userContent = lastUserMsg.content;
+      if (Array.isArray(userContent)) {
+        userContent = userContent.map(item => item.type === 'text' ? item.text : '[图片]').join(' ');
+      }
+      saveChatMessage(userId, 'user', String(userContent), req.body.model || '');
+    }
     // 自动模型路由：有图片用 Vision 版，无图用 Pro 版
     let model = req.body.model || DEFAULT_MODEL;
     if (hasImageInMessages(messages)) {
@@ -278,15 +489,38 @@ app.post('/v1/chat/completions', async (req, res) => {
       res.setHeader('X-Accel-Buffering', 'no');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let fullResponse = ''; // 收集完整回复用于保存
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        res.write(decoder.decode(value, { stream: true }));
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+        // 解析流式数据，收集回复内容
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) fullResponse += content;
+            } catch (e) {}
+          }
+        }
       }
       res.end();
+      // 保存 AI 回复
+      if (fullResponse) {
+        saveChatMessage(userId, 'assistant', fullResponse, model);
+      }
     } else {
       const data = await response.json();
       res.json(data);
+      // 保存 AI 回复
+      const assistantContent = data.choices?.[0]?.message?.content;
+      if (assistantContent) {
+        saveChatMessage(userId, 'assistant', String(assistantContent), model);
+      }
     }
   } catch (error) {
     console.error('聊天代理出错:', error);
@@ -467,6 +701,160 @@ app.post('/api/admin/cards/clean', authAdmin, (req, res) => {
     const deleted = beforeCount - remaining.length;
     writeCards(remaining);
     res.json({ success: true, message: `已清理 ${deleted} 个已使用的卡密`, remaining: remaining.length });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 管理员：用户管理 ============
+// 获取用户列表
+app.get('/api/admin/users', authAdmin, (req, res) => {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+    let users = readUsers();
+    // 搜索过滤
+    if (search) {
+      const keyword = search.toLowerCase();
+      users = users.filter(u =>
+        u.username.toLowerCase().includes(keyword) ||
+        u.id.toLowerCase().includes(keyword) ||
+        (u.email && u.email.toLowerCase().includes(keyword))
+      );
+    }
+    // 分页
+    const total = users.length;
+    const start = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedUsers = users.slice(start, start + parseInt(limit));
+    // 返回时不包含密码
+    const safeUsers = paginatedUsers.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      createdAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt,
+      status: u.status
+    }));
+    res.json({
+      success: true,
+      data: {
+        users: safeUsers,
+        total: total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 获取用户详情
+app.get('/api/admin/users/:id', authAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const users = readUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+    // 统计用户聊天记录数
+    const chats = readChats();
+    const userChats = chats.filter(c => c.userId === id);
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
+        status: user.status,
+        chatCount: userChats.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 封禁/解封用户
+app.post('/api/admin/users/:id/ban', authAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { banned } = req.body;
+    const users = readUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+    user.status = banned ? 'banned' : 'active';
+    writeUsers(users);
+    res.json({ success: true, message: banned ? '用户已封禁' : '用户已解封' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 管理员：聊天记录 ============
+// 获取聊天记录
+app.get('/api/admin/chats', authAdmin, (req, res) => {
+  try {
+    const { userId, search, page = 1, limit = 50 } = req.query;
+    let chats = readChats();
+    // 按用户过滤
+    if (userId) {
+      chats = chats.filter(c => c.userId === userId);
+    }
+    // 搜索过滤
+    if (search) {
+      const keyword = search.toLowerCase();
+      chats = chats.filter(c => c.content.toLowerCase().includes(keyword));
+    }
+    // 按时间倒序
+    chats.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // 分页
+    const total = chats.length;
+    const start = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedChats = chats.slice(start, start + parseInt(limit));
+    // 关联用户名
+    const users = readUsers();
+    const userMap = {};
+    users.forEach(u => { userMap[u.id] = u.username; });
+    const result = paginatedChats.map(c => ({
+      id: c.id,
+      userId: c.userId,
+      username: userMap[c.userId] || (c.userId === 'anonymous' ? '匿名用户' : c.userId),
+      role: c.role,
+      content: c.content,
+      model: c.model,
+      timestamp: c.timestamp
+    }));
+    res.json({
+      success: true,
+      data: {
+        chats: result,
+        total: total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 删除聊天记录
+app.delete('/api/admin/chats/:id', authAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const chats = readChats();
+    const index = chats.findIndex(c => c.id === id);
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: '聊天记录不存在' });
+    }
+    chats.splice(index, 1);
+    writeChats(chats);
+    res.json({ success: true, message: '聊天记录已删除' });
   } catch (error) {
     res.status(500).json({ success: false, message: '服务器错误：' + error.message });
   }
