@@ -10,6 +10,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -284,7 +285,84 @@ app.post('/verify', (req, res) => {
 });
 
 // ============ 验证码存储（内存，5分钟有效） ============
-const verificationCodes = new Map(); // phone -> { code, expireAt }
+const verificationCodes = new Map(); // phone/email -> { code, expireAt }
+
+// ============ 邮箱服务配置（QQ邮箱SMTP） ============
+// 在 Railway 环境变量中配置以下变量即可启用真实邮件服务：
+//   EMAIL_SMTP_HOST     - SMTP服务器地址（如 smtp.qq.com）
+//   EMAIL_SMTP_PORT     - SMTP端口（如 465）
+//   EMAIL_USER          - 发件邮箱地址
+//   EMAIL_PASS          - 邮箱SMTP授权码（不是邮箱密码）
+//   EMAIL_FROM_NAME     - 发件人名称（如"逸碎AI"）
+const EMAIL_CONFIG = {
+  host: process.env.EMAIL_SMTP_HOST || 'smtp.qq.com',
+  port: parseInt(process.env.EMAIL_SMTP_PORT) || 465,
+  secure: true,
+  user: process.env.EMAIL_USER || '',
+  pass: process.env.EMAIL_PASS || '',
+  fromName: process.env.EMAIL_FROM_NAME || '逸碎AI'
+};
+
+// 检查是否配置了邮箱服务
+function isEmailConfigured() {
+  return !!(EMAIL_CONFIG.user && EMAIL_CONFIG.pass);
+}
+
+// 创建邮件传输器
+let emailTransporter = null;
+function getEmailTransporter() {
+  if (!emailTransporter && isEmailConfigured()) {
+    emailTransporter = nodemailer.createTransport({
+      host: EMAIL_CONFIG.host,
+      port: EMAIL_CONFIG.port,
+      secure: EMAIL_CONFIG.secure,
+      auth: {
+        user: EMAIL_CONFIG.user,
+        pass: EMAIL_CONFIG.pass
+      }
+    });
+  }
+  return emailTransporter;
+}
+
+// 发送邮件验证码
+async function sendEmailCode(email, code) {
+  if (!isEmailConfigured()) {
+    console.log('[邮件] 未配置邮箱服务，使用模拟模式');
+    return { success: true, mock: true, code: code };
+  }
+  try {
+    const transporter = getEmailTransporter();
+    const mailOptions = {
+      from: `"${EMAIL_CONFIG.fromName}" <${EMAIL_CONFIG.user}>`,
+      to: email,
+      subject: `【${EMAIL_CONFIG.fromName}】注册验证码`,
+      text: `您的验证码是：${code}，5分钟内有效，请勿泄露给他人。`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h2 style="color: white; margin: 0; font-size: 24px;">逸碎AI</h2>
+            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">注册验证码</p>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 12px 12px;">
+            <p style="color: #333; font-size: 16px; margin-bottom: 20px;">您好！</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">您正在注册逸碎AI账号，验证码如下：</p>
+            <div style="background: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px;">
+              <span style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px;">${code}</span>
+            </div>
+            <p style="color: #999; font-size: 12px; margin: 0;">验证码5分钟内有效，请勿泄露给他人。如非本人操作，请忽略此邮件。</p>
+          </div>
+        </div>
+      `
+    };
+    await transporter.sendMail(mailOptions);
+    console.log(`[邮件] 验证码已发送到 ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error('[邮件] 发送异常:', error.message);
+    return { success: false, message: error.message };
+  }
+}
 
 // ============ 阿里云短信服务配置 ============
 // 在 Railway 环境变量中配置以下变量即可启用真实短信服务：
@@ -361,44 +439,70 @@ async function sendSmsCode(phone, code) {
   }
 }
 
-// ============ 接口 2.4：发送验证码 ============
+// ============ 接口 2.4：发送验证码（支持手机号和邮箱） ============
 app.post('/api/user/send-code', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ success: false, message: '请输入手机号' });
+    const { phone, email } = req.body;
+    const contact = phone || email;
+    
+    if (!contact) {
+      return res.status(400).json({ success: false, message: '请输入手机号或邮箱' });
     }
-    // 手机号格式验证
-    const phoneRegex = /^1[3-9]\d{9}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+    
+    // 判断是手机号还是邮箱
+    const isPhone = !!phone;
+    const isEmail = !!email && !phone;
+    
+    // 格式验证
+    if (isPhone) {
+      const phoneRegex = /^1[3-9]\d{9}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+      }
     }
+    
+    if (isEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: '请输入正确的邮箱格式' });
+      }
+    }
+    
     // 检查是否频繁发送（60秒内只能发一次）
-    const existing = verificationCodes.get(phone);
+    const existing = verificationCodes.get(contact);
     if (existing && Date.now() < existing.expireAt - 4 * 60 * 1000) {
       return res.status(429).json({ success: false, message: '发送过于频繁，请稍后再试' });
     }
+    
     // 生成6位数字验证码
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expireAt = Date.now() + 5 * 60 * 1000; // 5分钟有效
-    verificationCodes.set(phone, { code, expireAt });
-    console.log(`[验证码] 手机号: ${phone}, 验证码: ${code}`);
-    // 发送短信
-    const smsResult = await sendSmsCode(phone, code);
-    if (smsResult.success) {
+    verificationCodes.set(contact, { code, expireAt });
+    console.log(`[验证码] ${isPhone ? '手机号' : '邮箱'}: ${contact}, 验证码: ${code}`);
+    
+    // 发送验证码
+    let sendResult;
+    if (isPhone) {
+      sendResult = await sendSmsCode(phone, code);
+    } else {
+      sendResult = await sendEmailCode(email, code);
+    }
+    
+    if (sendResult.success) {
       const response = {
         success: true,
-        message: '验证码已发送，5分钟内有效',
-        expireIn: 300
+        message: `验证码已发送到${isPhone ? '手机' : '邮箱'}，5分钟内有效`,
+        expireIn: 300,
+        type: isPhone ? 'phone' : 'email'
       };
       // 模拟模式下返回验证码（用于测试），真实模式下不返回
-      if (smsResult.mock) {
+      if (sendResult.mock) {
         response.code = code;
         response.mock = true;
       }
       return res.json(response);
     } else {
-      return res.status(500).json({ success: false, message: '短信发送失败：' + (smsResult.message || '未知错误') });
+      return res.status(500).json({ success: false, message: '验证码发送失败：' + (sendResult.message || '未知错误') });
     }
   } catch (error) {
     console.error('发送验证码出错:', error);
@@ -406,12 +510,14 @@ app.post('/api/user/send-code', async (req, res) => {
   }
 });
 
-// ============ 接口 2.5：用户注册 ============
+// ============ 接口 2.5：用户注册（支持手机号和邮箱） ============
 app.post('/api/user/register', (req, res) => {
   try {
-    const { username, password, phone, code, email } = req.body;
-    if (!username || !password || !phone || !code) {
-      return res.status(400).json({ success: false, message: '用户名、密码、手机号和验证码不能为空' });
+    const { username, password, phone, email, code } = req.body;
+    const contact = phone || email;
+    
+    if (!username || !password || !contact || !code) {
+      return res.status(400).json({ success: false, message: '用户名、密码、联系方式和验证码不能为空' });
     }
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ success: false, message: '用户名长度需在3-20个字符之间' });
@@ -419,39 +525,55 @@ app.post('/api/user/register', (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: '密码长度不能少于6位' });
     }
-    // 手机号格式验证（中国大陆手机号）
-    const phoneRegex = /^1[3-9]\d{9}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+    
+    // 格式验证
+    const isPhone = !!phone;
+    if (isPhone) {
+      const phoneRegex = /^1[3-9]\d{9}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+      }
+    } else if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: '请输入正确的邮箱格式' });
+      }
     }
+    
     const users = readUsers();
     if (users.find(u => u.username === username)) {
       return res.status(400).json({ success: false, message: '用户名已存在' });
     }
-    if (users.find(u => u.phone === phone)) {
+    if (isPhone && users.find(u => u.phone === phone)) {
       return res.status(400).json({ success: false, message: '该手机号已被注册' });
     }
+    if (!isPhone && email && users.find(u => u.email === email)) {
+      return res.status(400).json({ success: false, message: '该邮箱已被注册' });
+    }
+    
     // 验证码验证
-    const storedCode = verificationCodes.get(phone);
+    const storedCode = verificationCodes.get(contact);
     if (!storedCode) {
       return res.status(400).json({ success: false, message: '请先获取验证码' });
     }
     if (Date.now() > storedCode.expireAt) {
-      verificationCodes.delete(phone);
+      verificationCodes.delete(contact);
       return res.status(400).json({ success: false, message: '验证码已过期，请重新获取' });
     }
     if (storedCode.code !== code) {
       return res.status(400).json({ success: false, message: '验证码错误，请检查后重试' });
     }
+    
     // 验证成功后删除验证码（一次性使用）
-    verificationCodes.delete(phone);
+    verificationCodes.delete(contact);
+    
     const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const token = generateUserToken(userId);
     const newUser = {
       id: userId,
       username: username,
       password: hashPassword(password),
-      phone: phone,
+      phone: phone || '',
       email: email || '',
       token: token,
       createdAt: new Date().toISOString(),
@@ -460,13 +582,15 @@ app.post('/api/user/register', (req, res) => {
     };
     users.push(newUser);
     writeUsers(users);
+    
     return res.json({
       success: true,
       message: '注册成功',
       data: {
         userId: userId,
         username: username,
-        phone: phone,
+        phone: phone || '',
+        email: email || '',
         token: token
       }
     });

@@ -441,9 +441,18 @@
                     <label>用户名 / ID</label>
                     <input type="text" id="regUsernameMain" placeholder="3-20个字符">
                 </div>
-                <div class="form-group">
+                <!-- 联系方式切换 -->
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button type="button" id="contactTypePhone" onclick="switchContactType('phone')" style="flex:1;padding:8px;border:1px solid #4f6ef7;border-radius:8px;background:#4f6ef7;color:white;font-size:13px;cursor:pointer;">手机号注册</button>
+                    <button type="button" id="contactTypeEmail" onclick="switchContactType('email')" style="flex:1;padding:8px;border:1px solid #e5e6eb;border-radius:8px;background:white;color:#666;font-size:13px;cursor:pointer;">邮箱注册</button>
+                </div>
+                <div class="form-group" id="phoneField">
                     <label>手机号</label>
                     <input type="tel" id="regPhoneMain" placeholder="请输入11位手机号" maxlength="11">
+                </div>
+                <div class="form-group" id="emailField" style="display:none;">
+                    <label>邮箱</label>
+                    <input type="email" id="regEmailMain" placeholder="请输入邮箱地址">
                 </div>
                 <div class="form-group">
                     <label>验证码</label>
@@ -736,32 +745,76 @@
         }
 
         // ========== 强制登录界面函数 ==========
+        // 当前联系方式类型：phone / email
+        let currentContactType = 'phone';
+        
+        // 切换联系方式类型
+        function switchContactType(type) {
+            currentContactType = type;
+            const phoneBtn = document.getElementById('contactTypePhone');
+            const emailBtn = document.getElementById('contactTypeEmail');
+            const phoneField = document.getElementById('phoneField');
+            const emailField = document.getElementById('emailField');
+            
+            if (type === 'phone') {
+                phoneBtn.style.background = '#4f6ef7';
+                phoneBtn.style.color = 'white';
+                phoneBtn.style.borderColor = '#4f6ef7';
+                emailBtn.style.background = 'white';
+                emailBtn.style.color = '#666';
+                emailBtn.style.borderColor = '#e5e6eb';
+                phoneField.style.display = 'block';
+                emailField.style.display = 'none';
+            } else {
+                emailBtn.style.background = '#4f6ef7';
+                emailBtn.style.color = 'white';
+                emailBtn.style.borderColor = '#4f6ef7';
+                phoneBtn.style.background = 'white';
+                phoneBtn.style.color = '#666';
+                phoneBtn.style.borderColor = '#e5e6eb';
+                emailField.style.display = 'block';
+                phoneField.style.display = 'none';
+            }
+        }
+        
         // 发送验证码
         let codeCountdown = 0;
         let codeTimer = null;
         async function sendVerificationCode() {
             const phone = document.getElementById('regPhoneMain').value.trim();
+            const email = document.getElementById('regEmailMain').value.trim();
+            const contact = currentContactType === 'phone' ? phone : email;
             const btn = document.getElementById('sendCodeBtn');
             const errorEl = document.getElementById('registerErrorMain');
             errorEl.style.display = 'none';
-            if (!phone) {
-                errorEl.textContent = '请先输入手机号';
+            
+            if (!contact) {
+                errorEl.textContent = currentContactType === 'phone' ? '请先输入手机号' : '请先输入邮箱';
                 errorEl.style.display = 'block';
                 return;
             }
-            if (!/^1[3-9]\d{9}$/.test(phone)) {
+            
+            if (currentContactType === 'phone' && !/^1[3-9]\d{9}$/.test(phone)) {
                 errorEl.textContent = '请输入正确的手机号格式';
                 errorEl.style.display = 'block';
                 return;
             }
+            
+            if (currentContactType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errorEl.textContent = '请输入正确的邮箱格式';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
             if (codeCountdown > 0) return;
             btn.disabled = true;
             btn.style.opacity = '0.6';
             try {
+                const body = currentContactType === 'phone' ? { phone } : { email };
                 const res = await fetch(API_BASE + '/api/user/send-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone })
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -769,7 +822,7 @@
                     if (data.mock && data.code) {
                         showToast('验证码已发送（测试模式）：' + data.code);
                     } else {
-                        showToast('验证码已发送，请注意查收短信');
+                        showToast('验证码已发送，请注意查收' + (currentContactType === 'phone' ? '短信' : '邮件'));
                     }
                     // 开始60秒倒计时
                     codeCountdown = 60;
@@ -849,12 +902,14 @@
         async function doMainRegister() {
             const username = document.getElementById('regUsernameMain').value.trim();
             const phone = document.getElementById('regPhoneMain').value.trim();
+            const email = document.getElementById('regEmailMain').value.trim();
             const code = document.getElementById('regCodeMain').value.trim();
             const password = document.getElementById('regPasswordMain').value;
             const password2 = document.getElementById('regPassword2Main').value;
+            const contact = currentContactType === 'phone' ? phone : email;
             const errorEl = document.getElementById('registerErrorMain');
             errorEl.style.display = 'none';
-            if (!username || !phone || !code || !password) {
+            if (!username || !contact || !code || !password) {
                 errorEl.textContent = '请填写完整信息（包括验证码）';
                 errorEl.style.display = 'block';
                 return;
@@ -864,8 +919,13 @@
                 errorEl.style.display = 'block';
                 return;
             }
-            if (!/^1[3-9]\d{9}$/.test(phone)) {
+            if (currentContactType === 'phone' && !/^1[3-9]\d{9}$/.test(phone)) {
                 errorEl.textContent = '请输入正确的手机号格式';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (currentContactType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errorEl.textContent = '请输入正确的邮箱格式';
                 errorEl.style.display = 'block';
                 return;
             }
@@ -880,10 +940,13 @@
                 return;
             }
             try {
+                const body = currentContactType === 'phone' 
+                    ? { username, phone, code, password }
+                    : { username, email, code, password };
                 const res = await fetch(API_BASE + '/api/user/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, phone, password })
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
                 if (data.success) {
