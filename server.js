@@ -283,11 +283,136 @@ app.post('/verify', (req, res) => {
   }
 });
 
+// ============ 验证码存储（内存，5分钟有效） ============
+const verificationCodes = new Map(); // phone -> { code, expireAt }
+
+// ============ 阿里云短信服务配置 ============
+// 在 Railway 环境变量中配置以下变量即可启用真实短信服务：
+//   ALIYUN_SMS_ACCESS_KEY_ID     - AccessKey ID
+//   ALIYUN_SMS_ACCESS_KEY_SECRET - AccessKey Secret
+//   ALIYUN_SMS_SIGN_NAME         - 短信签名（如"逸碎AI"）
+//   ALIYUN_SMS_TEMPLATE_CODE     - 短信模板ID（如"SMS_123456789"）
+const ALIYUN_SMS_CONFIG = {
+  accessKeyId: process.env.ALIYUN_SMS_ACCESS_KEY_ID || '',
+  accessKeySecret: process.env.ALIYUN_SMS_ACCESS_KEY_SECRET || '',
+  signName: process.env.ALIYUN_SMS_SIGN_NAME || '',
+  templateCode: process.env.ALIYUN_SMS_TEMPLATE_CODE || ''
+};
+
+// 检查是否配置了阿里云短信服务
+function isAliyunSmsConfigured() {
+  return !!(ALIYUN_SMS_CONFIG.accessKeyId &&
+            ALIYUN_SMS_CONFIG.accessKeySecret &&
+            ALIYUN_SMS_CONFIG.signName &&
+            ALIYUN_SMS_CONFIG.templateCode);
+}
+
+// 阿里云短信 API 签名（HMAC-SHA1）
+function generateAliyunSignature(params, accessKeySecret) {
+  const crypto = require('crypto');
+  const sortedParams = Object.keys(params).sort().map(key => {
+    return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+  }).join('&');
+  const stringToSign = 'GET&%2F&' + encodeURIComponent(sortedParams);
+  const signature = crypto.createHmac('sha1', accessKeySecret + '&').update(stringToSign).digest('base64');
+  return encodeURIComponent(signature);
+}
+
+// 发送短信验证码
+async function sendSmsCode(phone, code) {
+  if (!isAliyunSmsConfigured()) {
+    console.log('[短信] 未配置阿里云短信服务，使用模拟模式');
+    return { success: true, mock: true, code: code };
+  }
+  try {
+    const crypto = require('crypto');
+    const timestamp = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    const params = {
+      Action: 'SendSms',
+      Version: '2017-05-25',
+      Format: 'JSON',
+      AccessKeyId: ALIYUN_SMS_CONFIG.accessKeyId,
+      SignatureMethod: 'HMAC-SHA1',
+      SignatureVersion: '1.0',
+      SignatureNonce: crypto.randomBytes(8).toString('hex'),
+      Timestamp: timestamp,
+      PhoneNumbers: phone,
+      SignName: ALIYUN_SMS_CONFIG.signName,
+      TemplateCode: ALIYUN_SMS_CONFIG.templateCode,
+      TemplateParam: JSON.stringify({ code: code })
+    };
+    const signature = generateAliyunSignature(params, ALIYUN_SMS_CONFIG.accessKeySecret);
+    const queryString = Object.keys(params).sort().map(key => {
+      return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+    }).join('&');
+    const url = `https://dysmsapi.aliyuncs.com/?${queryString}&Signature=${signature}`;
+    const response = await fetch(url, { method: 'GET' });
+    const data = await response.json();
+    if (data.Code === 'OK') {
+      console.log(`[短信] 验证码已发送到 ${phone}`);
+      return { success: true };
+    } else {
+      console.error('[短信] 发送失败:', data.Message);
+      return { success: false, message: data.Message };
+    }
+  } catch (error) {
+    console.error('[短信] 发送异常:', error.message);
+    return { success: false, message: error.message };
+  }
+}
+
+// ============ 接口 2.4：发送验证码 ============
+app.post('/api/user/send-code', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, message: '请输入手机号' });
+    }
+    // 手机号格式验证
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+    }
+    // 检查是否频繁发送（60秒内只能发一次）
+    const existing = verificationCodes.get(phone);
+    if (existing && Date.now() < existing.expireAt - 4 * 60 * 1000) {
+      return res.status(429).json({ success: false, message: '发送过于频繁，请稍后再试' });
+    }
+    // 生成6位数字验证码
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expireAt = Date.now() + 5 * 60 * 1000; // 5分钟有效
+    verificationCodes.set(phone, { code, expireAt });
+    console.log(`[验证码] 手机号: ${phone}, 验证码: ${code}`);
+    // 发送短信
+    const smsResult = await sendSmsCode(phone, code);
+    if (smsResult.success) {
+      const response = {
+        success: true,
+        message: '验证码已发送，5分钟内有效',
+        expireIn: 300
+      };
+      // 模拟模式下返回验证码（用于测试），真实模式下不返回
+      if (smsResult.mock) {
+        response.code = code;
+        response.mock = true;
+      }
+      return res.json(response);
+    } else {
+      return res.status(500).json({ success: false, message: '短信发送失败：' + (smsResult.message || '未知错误') });
+    }
+  } catch (error) {
+    console.error('发送验证码出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
 // ============ 接口 2.5：用户注册 ============
 app.post('/api/user/register', (req, res) => {
   try {
-    const { username, password, phone, email } = req.body;
-    if (!username || !password || !phone) {
+    const { username, password, phone, code, email } = req.body;
+    if (!username || !password || !phone || !code) {
+      return res.status(400).json({ success: false, message: '用户名、密码、手机号和验证码不能为空' });
+    }
       return res.status(400).json({ success: false, message: '用户名、密码和手机号不能为空' });
     }
     if (username.length < 3 || username.length > 20) {
@@ -308,6 +433,20 @@ app.post('/api/user/register', (req, res) => {
     if (users.find(u => u.phone === phone)) {
       return res.status(400).json({ success: false, message: '该手机号已被注册' });
     }
+    // 验证码验证
+    const storedCode = verificationCodes.get(phone);
+    if (!storedCode) {
+      return res.status(400).json({ success: false, message: '请先获取验证码' });
+    }
+    if (Date.now() > storedCode.expireAt) {
+      verificationCodes.delete(phone);
+      return res.status(400).json({ success: false, message: '验证码已过期，请重新获取' });
+    }
+    if (storedCode.code !== code) {
+      return res.status(400).json({ success: false, message: '验证码错误，请检查后重试' });
+    }
+    // 验证成功后删除验证码（一次性使用）
+    verificationCodes.delete(phone);
     const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const token = generateUserToken(userId);
     const newUser = {
