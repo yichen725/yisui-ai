@@ -1,13 +1,13 @@
 {
-  "name": "yisui-ai-backend",
+  "name": "yisui-backend",
   "version": "1.0.0",
-  "description": "逸碎 AI 助手 - 后端代理服务（隐藏 API Key，支持流式响应）",
+  "description": "逸碎 AI 助手后端 - API 转发 + 卡密验证",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.18.2",
     "cors": "^2.8.5"
   },
   "engines": {

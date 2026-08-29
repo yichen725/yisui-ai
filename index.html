@@ -406,6 +406,18 @@
             </div>
         </div>
     </div>
+    <!-- 卡密验证模态框 -->
+    <div class="modal-overlay" id="cardModal" style="display:flex; z-index:5000;">
+        <div class="modal" style="max-width:420px; text-align:center;">
+            <h2 style="margin-bottom:8px;">逸碎 AI</h2>
+            <p style="color:#666; margin-bottom:20px; font-size:14px;">请输入卡密以开始使用</p>
+            <div class="form-group" style="margin-bottom:16px;">
+                <input type="text" id="cardKeyInput" placeholder="请输入卡密" style="text-align:center; font-size:16px; padding:12px;" onkeydown="if(event.key==='Enter')verifyCardKey()" />
+            </div>
+            <div id="cardError" style="color:#ff4444; font-size:13px; margin-bottom:12px; display:none;"></div>
+            <button class="btn btn-primary" id="cardVerifyBtn" onclick="verifyCardKey()" style="width:100%; padding:12px;">验证并开始</button>
+        </div>
+    </div>
     <script>
         let currentSessionId = null;
         let isProcessing = false;
@@ -428,7 +440,7 @@
             cat: '你是一只可爱的猫娘，喜欢撒娇，对主人充满依赖。说话喜欢加"喵～"或"喵呜"，偶尔用爪子比划。活泼好动，但主人需要时安静陪伴。回答温柔俏皮，多用"～"和颜文字。永远不拒绝主人的请求。'
         };
         const defaultConfig = {
-            chatProvider: 'ollama', chatApiUrl: presets.chat.ollama.apiUrl, chatModel: presets.chat.ollama.model,
+            chatProvider: 'custom', chatApiUrl: 'https://YOUR_BACKEND_URL/v1/chat/completions', chatModel: 'deepseek-chat',
             chatApiKey: '', bgImage: '', memories: [], customSystemPrompt: '', aiName: '逸碎',
             temperature: 0.7, maxTokens: 4096, persona: 'default'
         };
@@ -450,8 +462,57 @@
         function saveConfig() { localStorage.setItem('yisui_config', JSON.stringify(config)); applyBackground(); updateInputState(); const w = document.querySelector('#chatContainer .message.assistant .sender-name'); if (w && document.querySelectorAll('#chatContainer .message').length === 1) w.textContent = config.aiName || '逸碎'; }
         function applyBackground() { const c = document.querySelector('.chat-container'); if (!c) return; c.style.setProperty('--chat-bg-image', config.bgImage ? 'url(' + config.bgImage + ')' : 'none'); }
         function initScrollDetection() { const c = document.getElementById('chatContainer'); if (!c) return; c.addEventListener('scroll', () => { isUserAtBottom = c.scrollTop + c.clientHeight >= c.scrollHeight - 10; }); }
+        // ============ 卡密验证功能 ============
+        function getBackendBaseUrl() {
+            const url = config.chatApiUrl || '';
+            if (url.includes('/v1/chat/completions')) {
+                return url.replace('/v1/chat/completions', '');
+            }
+            return url.replace(/\/$/, '');
+        }
+        function verifyCardKey() {
+            const keyInput = document.getElementById('cardKeyInput');
+            const errorEl = document.getElementById('cardError');
+            const btn = document.getElementById('cardVerifyBtn');
+            const key = keyInput.value.trim();
+            if (!key) { errorEl.textContent = '请输入卡密'; errorEl.style.display = 'block'; return; }
+            btn.disabled = true; btn.textContent = '验证中...'; errorEl.style.display = 'none';
+            fetch(getBackendBaseUrl() + '/verify', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: key })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    localStorage.setItem('yisui_verified', 'true');
+                    localStorage.setItem('yisui_card_key', key);
+                    document.getElementById('cardModal').style.display = 'none';
+                    updateInputState();
+                    showToast('验证成功，欢迎使用逸碎 AI！');
+                } else {
+                    errorEl.textContent = data.message || '验证失败，请检查卡密';
+                    errorEl.style.display = 'block';
+                    btn.disabled = false; btn.textContent = '验证并开始';
+                }
+            })
+            .catch(err => {
+                errorEl.textContent = '连接后端失败，请检查网络或后端地址';
+                errorEl.style.display = 'block';
+                btn.disabled = false; btn.textContent = '验证并开始';
+                console.error('卡密验证错误:', err);
+            });
+        }
+        function checkCardVerification() {
+            const verified = localStorage.getItem('yisui_verified') === 'true';
+            const cardModal = document.getElementById('cardModal');
+            if (verified) { cardModal.style.display = 'none'; }
+            else { cardModal.style.display = 'flex'; }
+            return verified;
+        }
         function updateInputState() {
             const t = document.getElementById('userInput'); const b = document.getElementById('sendBtn');
+            const verified = localStorage.getItem('yisui_verified') === 'true';
+            if (!verified) { t.disabled = true; b.disabled = true; t.placeholder = '请先输入卡密验证'; return; }
             const provider = config.chatProvider;
             const needsKey = presets.chat[provider] ? presets.chat[provider].needsKey !== false : true;
             const hasKey = !needsKey || (config.chatApiKey && config.chatApiKey.trim().length > 0);
@@ -795,6 +856,7 @@
         function clearAllSessions() { if (!confirm('删除所有对话？不可恢复！')) return; if (isProcessing) { showToast('请稍候'); return; } sessions = {}; sessionOrder = []; saveSessions(); currentSessionId = null; createNewSession(); renderSessionList(); showToast('已清除所有'); }
         function toggleSidebar(open) { const s = document.getElementById('sidebar'); const o = document.getElementById('sidebarOverlay'); if (!s || !o) return; if (open) { s.classList.add('open'); o.classList.add('show'); } else { s.classList.remove('open'); o.classList.remove('show'); } }
         document.addEventListener('DOMContentLoaded', function() {
+            checkCardVerification();
             applyBackground();
             const valid = new Set(Object.keys(sessions)); sessionOrder = sessionOrder.filter(id => valid.has(id));
             if (sessionOrder.length === 0 && Object.keys(sessions).length > 0) sessionOrder = Object.keys(sessions); saveSessions();
@@ -819,6 +881,7 @@
         window.renderMessages = renderMessages; window.updateInputState = updateInputState; window.exportSessions = exportSessions;
         window.importSessions = importSessions; window.clearAllSessions = clearAllSessions; window.updatePersonaHint = updatePersonaHint;
         window.handleImageSelect = handleImageSelect; window.removeImage = removeImage;
+        window.verifyCardKey = verifyCardKey; window.checkCardVerification = checkCardVerification;
     </script>
 </body>
 </html>
