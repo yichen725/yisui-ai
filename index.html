@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>逸碎AI - 你的智能助手</title>
+    <title>逸碎AI</title>
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <style>
         * {
@@ -20,23 +20,23 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            color: #333;
         }
 
-        .container {
-            max-width: 900px;
-            width: 100%;
+        .card {
             background: white;
             border-radius: 24px;
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            animation: fadeInUp 0.6s ease-out;
+            animation: fadeIn 0.5s ease-out;
         }
 
-        @keyframes fadeInUp {
+        @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -44,318 +44,153 @@
             }
         }
 
-        .header {
-            background: linear-gradient(135deg, #3370ff 0%, #5b8def 100%);
-            padding: 40px 30px;
-            text-align: center;
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 300px;
-            height: 300px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-        }
-
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: -30%;
-            left: -10%;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 50%;
-        }
-
         .logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
-            background: white;
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #3370ff 0%, #5b8def 100%);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            font-weight: bold;
-            color: #3370ff;
-            margin-bottom: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            position: relative;
-            z-index: 1;
-        }
-
-        .header h1 {
             font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-            position: relative;
-            z-index: 1;
-        }
-
-        .content {
-            padding: 40px 30px;
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 24px;
-            color: #1f2329;
-        }
-
-        .options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .option-card {
-            border: 2px solid #e5e6eb;
-            border-radius: 16px;
-            padding: 30px 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .option-card:hover {
-            border-color: #3370ff;
-            transform: translateY(-4px);
-            box-shadow: 0 12px 32px rgba(51, 112, 255, 0.15);
-        }
-
-        .option-card.web:hover {
-            border-color: #3370ff;
-        }
-
-        .option-card.app:hover {
-            border-color: #52c41a;
-        }
-
-        .option-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: 16px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            margin-bottom: 16px;
-        }
-
-        .option-card.web .option-icon {
-            background: linear-gradient(135deg, #e6f0ff 0%, #cce0ff 100%);
-        }
-
-        .option-card.app .option-icon {
-            background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
-        }
-
-        .option-card h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #1f2329;
-        }
-
-        .option-card p {
-            font-size: 14px;
-            color: #646a73;
+            font-weight: bold;
+            color: white;
             margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2329;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #646a73;
+            margin-bottom: 36px;
             line-height: 1.5;
         }
 
-        .option-btn {
-            display: inline-block;
-            padding: 12px 32px;
-            border-radius: 24px;
-            font-size: 15px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s ease;
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
             border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            margin-bottom: 14px;
         }
 
-        .option-card.web .option-btn {
+        .btn-primary {
             background: #3370ff;
             color: white;
         }
 
-        .option-card.web .option-btn:hover {
+        .btn-primary:hover {
             background: #2860e1;
+            transform: translateY(-2px);
         }
 
-        .option-card.app .option-btn {
-            background: #52c41a;
-            color: white;
-        }
-
-        .option-card.app .option-btn:hover {
-            background: #49b017;
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 30px;
-        }
-
-        .feature-item {
-            text-align: center;
-            padding: 16px 12px;
-            background: #f9fafb;
-            border-radius: 12px;
-        }
-
-        .feature-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-
-        .feature-item h4 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 4px;
+        .btn-secondary {
+            background: #f5f6f7;
             color: #1f2329;
         }
 
-        .feature-item p {
-            font-size: 12px;
-            color: #646a73;
-            line-height: 1.4;
+        .btn-secondary:hover {
+            background: #e8eaed;
+            transform: translateY(-2px);
         }
 
-        .footer {
-            text-align: center;
-            padding: 20px;
-            background: #f9fafb;
-            border-top: 1px solid #e5e6eb;
+        .btn-icon {
+            margin-right: 8px;
         }
 
-        .footer p {
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e5e6eb;
+        }
+
+        .divider span {
+            padding: 0 16px;
+        }
+
+        .features {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 8px;
+        }
+
+        .feature {
             font-size: 13px;
             color: #999;
         }
 
-        .version-tag {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #e6f0ff;
-            color: #3370ff;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 8px;
+        .feature span {
+            margin-right: 4px;
         }
 
-        @media (max-width: 640px) {
-            .options {
-                grid-template-columns: 1fr;
+        .version {
+            margin-top: 28px;
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 36px 28px;
+            }
+
+            h1 {
+                font-size: 24px;
             }
 
             .features {
-                grid-template-columns: 1fr;
-            }
-
-            .header h1 {
-                font-size: 26px;
-            }
-
-            .content {
-                padding: 30px 20px;
+                flex-direction: column;
+                gap: 8px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">逸</div>
-            <h1>逸碎AI</h1>
-            <p>你的专属智能助手 · 多人格 · 图片识别 · 无限制对话</p>
-            <div class="version-tag">v1.0.0</div>
+    <div class="card">
+        <div class="logo">逸</div>
+        <h1>逸碎AI</h1>
+        <p class="subtitle">你的智能助手<br>多人格 · 图片识别 · 无限制对话</p>
+
+        <a href="app.html" class="btn btn-primary">
+            <span class="btn-icon">🌐</span>网页版立即使用
+        </a>
+
+        <button class="btn btn-secondary" onclick="downloadApp()">
+            <span class="btn-icon">📱</span>下载APP安装包
+        </button>
+
+        <div class="divider"><span>核心功能</span></div>
+
+        <div class="features">
+            <div class="feature"><span>🎭</span>5种人格</div>
+            <div class="feature"><span>🖼️</span>图片识别</div>
+            <div class="feature"><span>💬</span>无限制</div>
         </div>
 
-        <div class="content">
-            <h2 class="section-title">选择使用方式</h2>
-
-            <div class="options">
-                <div class="option-card web" onclick="window.location.href='app.html'">
-                    <div class="option-icon">🌐</div>
-                    <h3>网页版</h3>
-                    <p>无需下载，浏览器直接使用<br>支持手机和电脑</p>
-                    <a href="app.html" class="option-btn">立即使用</a>
-                </div>
-
-                <div class="option-card app" onclick="downloadApp()">
-                    <div class="option-icon">📱</div>
-                    <h3>APP版</h3>
-                    <p>下载安装到手机<br>像原生应用一样使用</p>
-                    <button class="option-btn" onclick="downloadApp()">下载APP</button>
-                </div>
-            </div>
-
-            <h2 class="section-title">核心功能</h2>
-
-            <div class="features">
-                <div class="feature-item">
-                    <div class="feature-icon">🎭</div>
-                    <h4>5种人格</h4>
-                    <p>默认、鲸鱼娘、绝对顺从、猫娘、林殷</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">🖼️</div>
-                    <h4>图片识别</h4>
-                    <p>上传图片，AI自动识别并分析内容</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">🤖</div>
-                    <h4>智能路由</h4>
-                    <p>自动选择最合适的AI模型</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">💬</div>
-                    <h4>无限制对话</h4>
-                    <p>不拒绝任何话题，坦诚直接回答</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">📝</div>
-                    <h4>会话管理</h4>
-                    <p>多会话、搜索、导出、导入</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">🎨</div>
-                    <h4>自定义</h4>
-                    <p>背景、记忆、温度、系统提示词</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>逸碎AI © 2026 · 由 DeepSeek V4 驱动</p>
-        </div>
+        <div class="version">v1.0.0</div>
     </div>
 
     <script>
@@ -367,11 +202,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            // 提示用户
-            setTimeout(() => {
-                alert('APP正在下载中...\n\n下载完成后点击安装即可使用。\n如果提示"未知来源应用"，请在设置中允许安装。');
-            }, 500);
         }
     </script>
 </body>
