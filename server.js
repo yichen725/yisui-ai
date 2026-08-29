@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const CARDS_FILE = path.join(__dirname, 'cards.json');
-const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-flash';
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-pro';
 
 // 中间件
 app.use(cors()); // 允许所有来源
@@ -100,6 +100,21 @@ const MODEL_CONFIG = {
  * 获取指定模型的 API Key（带兼容回退）
  * 兼容逻辑：如果 DEEPSEEK_KEY 未配置，回退到 OPENAI_KEY（因为用户可能把 DeepSeek Key 存在 OPENAI_KEY 里）
  */
+// 检测消息中是否包含图片
+function hasImageInMessages(messages) {
+  if (!Array.isArray(messages)) return false;
+  for (const msg of messages) {
+    if (Array.isArray(msg.content)) {
+      for (const item of msg.content) {
+        if (item.type === 'image_url' || item.type === 'image') {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 function getModelApiKey(modelConfig) {
   const key = process.env[modelConfig.apiKeyEnv];
   if (key) return key;
@@ -202,8 +217,14 @@ app.post('/verify', (req, res) => {
 app.post('/v1/chat/completions', async (req, res) => {
   try {
     const { messages, temperature, max_tokens, stream } = req.body;
-    // 模型由后端固定，前端不传 model 时使用默认模型
-    const model = req.body.model || DEFAULT_MODEL;
+    // 自动模型路由：有图片用 Vision 版，无图用 Pro 版
+    let model = req.body.model || DEFAULT_MODEL;
+    if (hasImageInMessages(messages)) {
+      model = 'deepseek-v4-flash-vision-exp';
+      console.log('检测到图片，自动切换到 Vision 模型');
+    } else if (!MODEL_CONFIG[model]) {
+      model = DEFAULT_MODEL;
+    }
 
     if (!model || !Array.isArray(messages)) {
       return res.status(400).json({ error: { message: '缺少必要参数：model 和 messages' } });
