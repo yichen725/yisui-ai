@@ -2,6 +2,7 @@ const CACHE_NAME = 'yisui-ai-v1';
 const urlsToCache = [
   './',
   './index.html',
+  './app.html',
   './manifest.json',
   'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
   'https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js',
@@ -51,7 +52,7 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => {
             if (event.request.destination === 'document') {
-              return caches.match('./index.html');
+              return caches.match('./app.html');
             }
           });
       })

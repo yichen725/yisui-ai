@@ -2,7 +2,7 @@
   "name": "逸碎AI - 智能助手",
   "short_name": "逸碎AI",
   "description": "逸碎AI智能助手，支持多人格、图片识别、自动模型路由",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
