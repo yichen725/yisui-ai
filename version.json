@@ -1,0 +1,8 @@
+{
+  "versionCode": 1,
+  "versionName": "1.1.0",
+  "apkUrl": "https://yichen725.github.io/yisui-ai/yisui-ai-v1.0.apk",
+  "updateLog": "1. 修复APP启动页面，直接进入聊天界面\n2. 添加云端自动更新功能\n3. 优化界面显示",
+  "forceUpdate": false,
+  "fileSize": "5.5 MB"
+}
