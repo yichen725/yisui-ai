@@ -516,14 +516,13 @@ app.post('/api/user/send-code', async (req, res) => {
   }
 });
 
-// ============ 接口 2.5：用户注册（支持手机号和邮箱） ============
+// ============ 接口 2.5：用户注册（仅用户名和密码，免费注册） ============
 app.post('/api/user/register', (req, res) => {
   try {
-    const { username, password, phone, email, code } = req.body;
-    const contact = phone || email;
+    const { username, password } = req.body;
     
-    if (!username || !password || !contact || !code) {
-      return res.status(400).json({ success: false, message: '用户名、密码、联系方式和验证码不能为空' });
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
     }
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ success: false, message: '用户名长度需在3-20个字符之间' });
@@ -532,46 +531,10 @@ app.post('/api/user/register', (req, res) => {
       return res.status(400).json({ success: false, message: '密码长度不能少于6位' });
     }
     
-    // 格式验证
-    const isPhone = !!phone;
-    if (isPhone) {
-      const phoneRegex = /^1[3-9]\d{9}$/;
-      if (!phoneRegex.test(phone)) {
-        return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
-      }
-    } else if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ success: false, message: '请输入正确的邮箱格式' });
-      }
-    }
-    
     const users = readUsers();
     if (users.find(u => u.username === username)) {
       return res.status(400).json({ success: false, message: '用户名已存在' });
     }
-    if (isPhone && users.find(u => u.phone === phone)) {
-      return res.status(400).json({ success: false, message: '该手机号已被注册' });
-    }
-    if (!isPhone && email && users.find(u => u.email === email)) {
-      return res.status(400).json({ success: false, message: '该邮箱已被注册' });
-    }
-    
-    // 验证码验证
-    const storedCode = verificationCodes.get(contact);
-    if (!storedCode) {
-      return res.status(400).json({ success: false, message: '请先获取验证码' });
-    }
-    if (Date.now() > storedCode.expireAt) {
-      verificationCodes.delete(contact);
-      return res.status(400).json({ success: false, message: '验证码已过期，请重新获取' });
-    }
-    if (storedCode.code !== code) {
-      return res.status(400).json({ success: false, message: '验证码错误，请检查后重试' });
-    }
-    
-    // 验证成功后删除验证码（一次性使用）
-    verificationCodes.delete(contact);
     
     const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const token = generateUserToken(userId);
@@ -579,8 +542,8 @@ app.post('/api/user/register', (req, res) => {
       id: userId,
       username: username,
       password: hashPassword(password),
-      phone: phone || '',
-      email: email || '',
+      phone: '',
+      email: '',
       token: token,
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
@@ -595,8 +558,6 @@ app.post('/api/user/register', (req, res) => {
       data: {
         userId: userId,
         username: username,
-        phone: phone || '',
-        email: email || '',
         token: token
       }
     });

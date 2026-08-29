@@ -441,17 +441,7 @@
                     <label>用户名 / ID</label>
                     <input type="text" id="regUsernameMain" placeholder="3-20个字符">
                 </div>
-                <div class="form-group">
-                    <label>邮箱</label>
-                    <input type="email" id="regEmailMain" placeholder="请输入邮箱地址">
-                </div>
-                <div class="form-group">
-                    <label>验证码</label>
-                    <div style="display:flex;gap:8px;">
-                        <input type="text" id="regCodeMain" placeholder="请输入6位验证码" maxlength="6" style="flex:1;">
-                        <button type="button" id="sendCodeBtn" onclick="sendVerificationCode()" style="padding:0 16px;border:1px solid #e5e6eb;border-radius:10px;background:white;color:#4f6ef7;font-size:13px;cursor:pointer;white-space:nowrap;transition:all 0.2s;">获取验证码</button>
-                    </div>
-                </div>
+
                 <div class="form-group">
                     <label>密码</label>
                     <input type="password" id="regPasswordMain" placeholder="至少6位">
@@ -681,19 +671,14 @@
 
         async function doRegister() {
             const username = document.getElementById('regUsername').value.trim();
-            const phone = document.getElementById('regPhone').value.trim();
             const password = document.getElementById('regPassword').value;
             const password2 = document.getElementById('regPassword2').value;
-            if (!username || !phone || !password) {
-                showToast('请填写完整信息');
+            if (!username || !password) {
+                showToast('请填写用户名和密码');
                 return;
             }
             if (username.length < 3 || username.length > 20) {
                 showToast('用户名长度需在3-20个字符之间');
-                return;
-            }
-            if (!/^1[3-9]\d{9}$/.test(phone)) {
-                showToast('请输入正确的邮箱格式');
                 return;
             }
             if (password.length < 6) {
@@ -708,7 +693,7 @@
                 const res = await fetch(API_BASE + '/api/user/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, phone, code, password })
+                    body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -852,24 +837,17 @@
 
         async function doMainRegister() {
             const username = document.getElementById('regUsernameMain').value.trim();
-            const email = document.getElementById('regEmailMain').value.trim();
-            const code = document.getElementById('regCodeMain').value.trim();
             const password = document.getElementById('regPasswordMain').value;
             const password2 = document.getElementById('regPassword2Main').value;
             const errorEl = document.getElementById('registerErrorMain');
             errorEl.style.display = 'none';
-            if (!username || !email || !code || !password) {
-                errorEl.textContent = '请填写完整信息（包括验证码）';
+            if (!username || !password) {
+                errorEl.textContent = '请填写用户名和密码';
                 errorEl.style.display = 'block';
                 return;
             }
             if (username.length < 3 || username.length > 20) {
                 errorEl.textContent = '用户名长度需在3-20个字符之间';
-                errorEl.style.display = 'block';
-                return;
-            }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errorEl.textContent = '请输入正确的邮箱格式';
                 errorEl.style.display = 'block';
                 return;
             }
@@ -884,7 +862,7 @@
                 return;
             }
             try {
-                const body = { username, email, code, password };
+                const body = { username, password };
                 const res = await fetch(API_BASE + '/api/user/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
