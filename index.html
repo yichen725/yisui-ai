@@ -590,7 +590,7 @@
             const userMsg = { id: generateMessageId(), role: 'user', content: msg, image: imageData, time: getCurrentTime() };
             session.messages.push(userMsg); saveSessions(); addMessageToUI(userMsg);
             document.getElementById('userInput').value = ''; autoResizeTextarea();
-            removeImage();
+            if (currentImageData) removeImage();
             isProcessing = true; updateInputState();
             try { await performChat(session); }
             catch (e) { if (e.name !== 'AbortError') { console.error(e); const errObj = { id: generateMessageId(), role: 'assistant', content: '❌ ' + parseErrorMessage(e), time: getCurrentTime() }; session.messages.push(errObj); saveSessions(); addMessageToUI(errObj); showToast('发送失败：' + parseErrorMessage(e)); } }
