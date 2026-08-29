@@ -22,6 +22,8 @@ const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-pro';
 // 中间件
 app.use(cors()); // 允许所有来源
 app.use(express.json({ limit: '10mb' }));
+// 静态文件服务（前端页面）
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ 模型配置（后端统一管理，前端不可见） ============
 /**
