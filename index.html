@@ -346,6 +346,14 @@
                 <div class="settings-group">
                     <h3>人格与记忆</h3>
                     <div class="form-group">
+                        <label>AI 模型</label>
+                        <select id="modelSelect">
+                            <option value="deepseek-v4-pro">DeepSeek V4 Pro（旗舰版）</option>
+                            <option value="deepseek-v4-flash-vision-exp">DeepSeek V4 Flash Vision（视觉识图版）</option>
+                        </select>
+                        <div style="font-size:12px;color:#888;margin-top:4px;">Pro版响应质量高，Vision版支持图片识别</div>
+                    </div>
+                    <div class="form-group">
                         <label>人格预设</label>
                         <select id="personaSelect" onchange="updatePersonaHint()">
                             <option value="default">默认（无角色）</option>
@@ -666,6 +674,7 @@
         }
         function openSettings() {
             const modal = document.getElementById('settingsModal'); if (!modal) return; modal.classList.add('show');
+            document.getElementById('modelSelect').value = config.chatModel || 'deepseek-v4-pro';
             document.getElementById('aiNameInput').value = config.aiName || '逸碎'; document.getElementById('customSystemPrompt').value = config.customSystemPrompt || '';
             document.getElementById('temperatureInput').value = config.temperature != null ? config.temperature : 0.7;
             document.getElementById('maxTokensInput').value = config.maxTokens != null ? config.maxTokens : 4096;
@@ -677,6 +686,7 @@
             const aiName = document.getElementById('aiNameInput').value.trim() || '逸碎'; const customPrompt = document.getElementById('customSystemPrompt').value.trim();
             const temp = parseFloat(document.getElementById('temperatureInput').value) || 0.7; const maxT = parseInt(document.getElementById('maxTokensInput').value) || 4096;
             const persona = document.getElementById('personaSelect').value;
+            config.chatModel = document.getElementById('modelSelect').value;
             config.aiName = aiName; config.customSystemPrompt = customPrompt;
             config.temperature = Math.min(2, Math.max(0, temp)); config.maxTokens = Math.min(8192, Math.max(1, maxT)); config.persona = persona;
             saveConfig(); closeSettings(); showToast('设置已保存，新对话将使用新人格'); updateInputState();
