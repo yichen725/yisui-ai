@@ -262,6 +262,22 @@
         ::-webkit-scrollbar-thumb:hover { background: #aaa; }
         .file-input-wrapper { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .file-input-wrapper input[type="file"] { flex: 1; min-width: 120px; }
+        /* 回到底部按钮 */
+        .scroll-bottom-btn {
+            position: absolute; bottom: 80px; right: 20px; width: 40px; height: 40px;
+            border-radius: 50%; background: white; border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; font-size: 18px;
+            color: var(--text-secondary); display: none; align-items: center; justify-content: center;
+            z-index: 50; transition: all 0.25s ease; opacity: 0; transform: translateY(10px);
+        }
+        .scroll-bottom-btn.show { display: flex; opacity: 1; transform: translateY(0); }
+        .scroll-bottom-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        .scroll-bottom-btn .badge {
+            position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
+            background: #ff4444; color: white; font-size: 11px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; padding: 0 5px; font-weight: 600;
+        }
+        .main { position: relative; }
     </style>
 </head>
 <body>
@@ -300,6 +316,9 @@
                 <div class="bubble">你好！我是逸碎。输入卡密验证后即可开始聊天，可在「设置」中选择人格。</div>
             </div>
         </div>
+        <button class="scroll-bottom-btn" id="scrollBottomBtn" onclick="scrollToBottom(true)">
+            <span id="scrollBadge" class="badge" style="display:none;">0</span>↓
+        </button>
         <div class="input-area">
             <div class="input-box">
                 <button class="attach-btn" id="attachBtn" title="上传图片" onclick="document.getElementById('imageInput').click()">
@@ -392,6 +411,30 @@
         let isProcessing = false;
         let abortController = null;
         let isUserAtBottom = true;
+        let unreadCount = 0;
+        function scrollToBottom(force) {
+            const c = document.getElementById('chatContainer'); if (!c) return;
+            if (!force && !isUserAtBottom) return;
+            // 平滑滚动到底部
+            c.scrollTo({ top: c.scrollHeight, behavior: force ? 'smooth' : 'auto' });
+            // 滚动后清除未读计数
+            if (force) { unreadCount = 0; updateScrollBadge(); }
+        }
+        function updateScrollBadge() {
+            const btn = document.getElementById('scrollBottomBtn');
+            const badge = document.getElementById('scrollBadge');
+            if (!btn || !badge) return;
+            if (unreadCount > 0 && !isUserAtBottom) {
+                btn.classList.add('show');
+                badge.style.display = 'flex';
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            } else if (!isUserAtBottom) {
+                btn.classList.add('show');
+                badge.style.display = 'none';
+            } else {
+                btn.classList.remove('show');
+            }
+        }
         let sessions = JSON.parse(localStorage.getItem('yisui_sessions') || '{}');
         let sessionOrder = JSON.parse(localStorage.getItem('yisui_order') || '[]');
         let currentImageData = null;
@@ -418,14 +461,21 @@
         function generateMessageId() { return 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8); }
         function escapeHtml(text) { if (!text) return ''; const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
         function getCurrentTime() { return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }); }
-        function scrollToBottom(force) { const c = document.getElementById('chatContainer'); if (!c) return; if (!force && !isUserAtBottom) return; c.scrollTop = c.scrollHeight; }
         function autoResizeTextarea() { const t = document.getElementById('userInput'); if (!t) return; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
         let toastTimer = null;
         function showToast(msg, d) { d = d || 2500; const el = document.getElementById('toast'); if (!el) return; el.textContent = msg; el.classList.add('show'); if (toastTimer) clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), d); }
         function saveSessions() { localStorage.setItem('yisui_sessions', JSON.stringify(sessions)); localStorage.setItem('yisui_order', JSON.stringify(sessionOrder)); if (currentSessionId) localStorage.setItem('yisui_current_session', currentSessionId); else localStorage.removeItem('yisui_current_session'); }
         function saveConfig() { localStorage.setItem('yisui_config', JSON.stringify(config)); applyBackground(); updateInputState(); const w = document.querySelector('#chatContainer .message.assistant .sender-name'); if (w && document.querySelectorAll('#chatContainer .message').length === 1) w.textContent = config.aiName || '逸碎'; }
         function applyBackground() { const c = document.querySelector('.chat-container'); if (!c) return; c.style.setProperty('--chat-bg-image', config.bgImage ? 'url(' + config.bgImage + ')' : 'none'); }
-        function initScrollDetection() { const c = document.getElementById('chatContainer'); if (!c) return; c.addEventListener('scroll', () => { isUserAtBottom = c.scrollTop + c.clientHeight >= c.scrollHeight - 10; }); }
+        function initScrollDetection() {
+            const c = document.getElementById('chatContainer'); if (!c) return;
+            c.addEventListener('scroll', () => {
+                // 扩大底部判断范围：距离底部 150px 以内都算在底部，自动跟随滚动
+                isUserAtBottom = c.scrollTop + c.clientHeight >= c.scrollHeight - 150;
+                if (isUserAtBottom) { unreadCount = 0; }
+                updateScrollBadge();
+            });
+        }
         // ============ 卡密验证功能 ============
         function getBackendBaseUrl() {
             return BACKEND_URL;
@@ -527,7 +577,18 @@
             div.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
             return div;
         }
-        function addMessageToUI(msg, scroll) { document.getElementById('chatContainer').appendChild(createMessageElement(msg)); if (scroll !== false) scrollToBottom(true); }
+        function addMessageToUI(msg, scroll) {
+            document.getElementById('chatContainer').appendChild(createMessageElement(msg));
+            if (scroll !== false) {
+                // 用户消息强制滚动到底部；AI 消息仅当用户在底部附近时才跟随滚动
+                if (msg.role === 'user' || isUserAtBottom) {
+                    scrollToBottom(true);
+                } else {
+                    unreadCount = Math.min(unreadCount + 1, 99);
+                    updateScrollBadge();
+                }
+            }
+        }
         function copyMessage(btn) { const div = btn.closest('.message'); if (!div) return; const text = div.querySelector('.bubble') ? div.querySelector('.bubble').innerText : ''; if (!text) return; const doCopy = () => { const orig = btn.textContent; btn.textContent = '已复制'; setTimeout(() => btn.textContent = orig, 1500); }; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(doCopy).catch(() => fallbackCopy(text, btn)); } else fallbackCopy(text, btn); }
         function fallbackCopy(text, btn) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); btn.textContent = '已复制'; } catch (e) { btn.textContent = '失败'; } setTimeout(() => btn.textContent = '复制', 1500); document.body.removeChild(ta); }
         function editSessionTitle() {
@@ -605,7 +666,7 @@
             container.appendChild(msgDiv); scrollToBottom(true);
             const thinkingBox = msgDiv.querySelector('.thinking-box'); const contentDiv = msgDiv.querySelector('.stream-content');
             let fullContent = '', fullThinking = '', hasThinking = false, hasContent = false, renderTimer = null;
-            const scheduleRender = () => { if (renderTimer) return; renderTimer = setTimeout(() => { renderTimer = null; if (!contentDiv || !contentDiv.isConnected) return; try { if (hasThinking && thinkingBox) { thinkingBox.style.display = 'block'; thinkingBox.textContent = fullThinking; } else if (thinkingBox) thinkingBox.style.display = 'none'; let display = fullContent || (hasThinking ? '（思考中...）' : ''); if (display) { const clean = DOMPurify.sanitize(display); contentDiv.innerHTML = marked.parse(clean); contentDiv.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} }); } else contentDiv.innerHTML = ''; scrollToBottom(false); } catch (e) {} }, 60); };
+            const scheduleRender = () => { if (renderTimer) return; renderTimer = setTimeout(() => { renderTimer = null; if (!contentDiv || !contentDiv.isConnected) return; try { if (hasThinking && thinkingBox) { thinkingBox.style.display = 'block'; thinkingBox.textContent = fullThinking; } else if (thinkingBox) thinkingBox.style.display = 'none'; let display = fullContent || (hasThinking ? '（思考中...）' : ''); if (display) { const clean = DOMPurify.sanitize(display); contentDiv.innerHTML = marked.parse(clean); contentDiv.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} }); } else contentDiv.innerHTML = ''; if (!isUserAtBottom && (hasContent || hasThinking)) { unreadCount = Math.min(unreadCount + 1, 99); } scrollToBottom(false); updateScrollBadge(); } catch (e) {} }, 60); };
             try {
                 const systemMsg = buildSystemMessage();
                 const history = session.messages.slice(-30);
@@ -735,7 +796,7 @@
             const saved = localStorage.getItem('yisui_current_session'); if (saved && sessions[saved]) currentSessionId = saved;
             if (!currentSessionId || !sessions[currentSessionId]) currentSessionId = sessionOrder.length > 0 ? sessionOrder[0] : null;
             if (currentSessionId && sessions[currentSessionId]) selectSession(currentSessionId); else createNewSession();
-            renderSessionList(); updateInputState(); autoResizeTextarea(); initScrollDetection();
+            renderSessionList(); updateInputState(); autoResizeTextarea(); initScrollDetection(); updateScrollBadge();
             document.getElementById('userInput').addEventListener('input', autoResizeTextarea);
             document.getElementById('settingsModal').addEventListener('click', function(e) { if (e.target === this) closeSettings(); });
             document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.getElementById('settingsModal').classList.contains('show')) closeSettings(); });
@@ -749,6 +810,7 @@
         window.filterSessions = filterSessions; window.removeBackground = removeBackground; window.selectSession = selectSession;
         window.deleteSession = deleteSession; window.showToast = showToast; window.renderSessionList = renderSessionList;
         window.renderMessages = renderMessages; window.updateInputState = updateInputState; window.exportSessions = exportSessions;
+        window.scrollToBottom = scrollToBottom; window.updateScrollBadge = updateScrollBadge;
         window.importSessions = importSessions; window.clearAllSessions = clearAllSessions; window.updatePersonaHint = updatePersonaHint;
         window.handleImageSelect = handleImageSelect; window.removeImage = removeImage;
         window.verifyCardKey = verifyCardKey; window.checkCardVerification = checkCardVerification;
