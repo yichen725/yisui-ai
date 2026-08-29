@@ -106,6 +106,58 @@
             transform: translateY(-2px);
         }
 
+        .download-options {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .download-options.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .download-options p {
+            font-size: 13px;
+            color: #646a73;
+            margin-bottom: 10px;
+        }
+
+        .download-link {
+            display: block;
+            padding: 10px 14px;
+            background: white;
+            border: 1px solid #e5e6eb;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #3370ff;
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .download-link:hover {
+            border-color: #3370ff;
+            background: #f0f5ff;
+        }
+
+        .download-link:last-child {
+            margin-bottom: 0;
+        }
+
+        .download-link .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e6f0ff;
+            color: #3370ff;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
         .btn-icon {
             margin-right: 8px;
         }
@@ -178,9 +230,22 @@
             <span class="btn-icon">🌐</span>网页版立即使用
         </a>
 
-        <button class="btn btn-secondary" onclick="downloadApp()">
+        <button class="btn btn-secondary" onclick="toggleDownload()">
             <span class="btn-icon">📱</span>下载APP安装包
         </button>
+
+        <div class="download-options" id="downloadOptions">
+            <p>选择下载线路（哪个快用哪个）：</p>
+            <a href="https://yichen725.github.io/yisui-ai/yisui-ai-v1.0.apk" class="download-link" download>
+                线路1：GitHub Pages<span class="tag">推荐</span>
+            </a>
+            <a href="https://raw.githubusercontent.com/yichen725/yisui-ai/main/yisui-ai-v1.0.apk" class="download-link" download>
+                线路2：GitHub Raw
+            </a>
+            <a href="https://cdn.jsdelivr.net/gh/yichen725/yisui-ai@main/yisui-ai-v1.0.apk" class="download-link" download>
+                线路3：jsDelivr CDN
+            </a>
+        </div>
 
         <div class="divider"><span>核心功能</span></div>
 
@@ -194,14 +259,9 @@
     </div>
 
     <script>
-        function downloadApp() {
-            const apkUrl = 'https://raw.githubusercontent.com/yichen725/yisui-ai/main/yisui-ai-v1.0.apk';
-            const link = document.createElement('a');
-            link.href = apkUrl;
-            link.download = '逸碎AI-v1.0.apk';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        function toggleDownload() {
+            const options = document.getElementById('downloadOptions');
+            options.classList.toggle('show');
         }
     </script>
 </body>
