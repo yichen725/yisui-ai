@@ -570,10 +570,11 @@
             reader.readAsDataURL(file);
         }
         function removeImage() {
+            const hadImage = !!currentImageData;
             currentImageData = null;
             document.getElementById('imagePreview').style.display = 'none';
             document.getElementById('previewImg').src = '';
-            showToast('已移除图片');
+            if (hadImage) showToast('已移除图片');
         }
         function sendMessage() {
             if (isProcessing) return; const input = document.getElementById('userInput'); const msg = input.value.trim(); if (!msg && !currentImageData) { showToast('请输入内容或上传图片'); return; }
