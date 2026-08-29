@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 const CARDS_FILE = path.join(__dirname, 'cards.json');
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-flash';
 
@@ -40,6 +41,12 @@ const MODEL_CONFIG = {
     apiUrl: 'https://api.deepseek.com/v1/chat/completions',
     apiKeyEnv: 'DEEPSEEK_KEY',
     name: 'DeepSeek V4 Pro（旗舰）',
+    provider: 'deepseek'
+  },
+  'deepseek-v4-flash-vision-exp': {
+    apiUrl: 'https://api.deepseek.com/v1/chat/completions',
+    apiKeyEnv: 'DEEPSEEK_KEY',
+    name: 'DeepSeek V4 Flash Vision（视觉识别）',
     provider: 'deepseek'
   },
   // DeepSeek V3 / R1 系列
