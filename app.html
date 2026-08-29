@@ -283,9 +283,184 @@
         ::-webkit-scrollbar-thumb:hover { background: #aaa; }
         .file-input-wrapper { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .file-input-wrapper input[type="file"] { flex: 1; min-width: 120px; }
+
+        /* 强制登录界面 */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f7f8fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .login-overlay.hidden {
+            display: none;
+        }
+        .login-box {
+            background: white;
+            border: 1px solid #e5e6eb;
+            border-radius: 16px;
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 380px;
+        }
+        .login-box h1 {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #1f2329, #4f6ef7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .login-box .subtitle {
+            font-size: 14px;
+            color: #7e8493;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .login-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: #f7f8fa;
+            padding: 4px;
+            border-radius: 10px;
+        }
+        .login-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #7e8493;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .login-tab.active {
+            background: white;
+            color: #1f2329;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .login-form {
+            display: none;
+        }
+        .login-form.active {
+            display: block;
+        }
+        .login-box .form-group {
+            margin-bottom: 16px;
+        }
+        .login-box .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #7e8493;
+            margin-bottom: 6px;
+        }
+        .login-box .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e5e6eb;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .login-box .form-group input:focus {
+            border-color: #4f6ef7;
+        }
+        .login-box .btn-login {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            background: #1f2329;
+            color: white;
+        }
+        .login-box .btn-login:hover {
+            background: #2d3342;
+        }
+        .login-box .error-msg {
+            color: #e74c3c;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+        }
+        .login-box .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #999;
+        }
+
     </style>
 </head>
 <body>
+
+    <!-- 强制登录界面 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h1>逸碎AI</h1>
+            <p class="subtitle">智能对话助手 · 登录后开始使用</p>
+            <div class="login-tabs">
+                <button class="login-tab active" onclick="switchLoginTab('login')">登录</button>
+                <button class="login-tab" onclick="switchLoginTab('register')">注册</button>
+            </div>
+            <!-- 登录表单 -->
+            <div class="login-form active" id="loginFormMain">
+                <div class="form-group">
+                    <label>用户名 / ID</label>
+                    <input type="text" id="loginUsernameMain" placeholder="请输入用户名或ID">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPasswordMain" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doMainLogin()">
+                </div>
+                <button class="btn-login" onclick="doMainLogin()">登录</button>
+                <div class="error-msg" id="loginErrorMain"></div>
+            </div>
+            <!-- 注册表单 -->
+            <div class="login-form" id="registerFormMain">
+                <div class="form-group">
+                    <label>用户名 / ID</label>
+                    <input type="text" id="regUsernameMain" placeholder="3-20个字符">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="tel" id="regPhoneMain" placeholder="请输入11位手机号" maxlength="11">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="regPasswordMain" placeholder="至少6位">
+                </div>
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input type="password" id="regPassword2Main" placeholder="再次输入密码" onkeydown="if(event.key==='Enter')doMainRegister()">
+                </div>
+                <button class="btn-login" onclick="doMainRegister()">注册</button>
+                <div class="error-msg" id="registerErrorMain"></div>
+            </div>
+            <div class="footer-text">登录即表示同意用户协议和隐私政策</div>
+        </div>
+    </div>
+
+
     <div class="toast" id="toast"></div>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
     <div class="sidebar" id="sidebar">
@@ -549,6 +724,111 @@
             document.getElementById('loginBtn').textContent = '登录/注册';
             showToast('已退出登录');
             closeAuthModal();
+            // 退出后显示强制登录界面
+            document.getElementById('loginOverlay').classList.remove('hidden');
+        }
+
+        // ========== 强制登录界面函数 ==========
+        function switchLoginTab(tab) {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
+            if (tab === 'login') {
+                document.querySelectorAll('.login-tab')[0].classList.add('active');
+                document.getElementById('loginFormMain').classList.add('active');
+            } else {
+                document.querySelectorAll('.login-tab')[1].classList.add('active');
+                document.getElementById('registerFormMain').classList.add('active');
+            }
+            document.getElementById('loginErrorMain').style.display = 'none';
+            document.getElementById('registerErrorMain').style.display = 'none';
+        }
+
+        async function doMainLogin() {
+            const username = document.getElementById('loginUsernameMain').value.trim();
+            const password = document.getElementById('loginPasswordMain').value;
+            const errorEl = document.getElementById('loginErrorMain');
+            errorEl.style.display = 'none';
+            if (!username || !password) {
+                errorEl.textContent = '请输入用户名和密码';
+                errorEl.style.display = 'block';
+                return;
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/user/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.data;
+                    localStorage.setItem('yisui_user', JSON.stringify(currentUser));
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('loginBtn').textContent = currentUser.username || '已登录';
+                    showToast('登录成功，欢迎回来！');
+                } else {
+                    errorEl.textContent = data.message || '登录失败';
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                errorEl.textContent = '网络错误：' + e.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function doMainRegister() {
+            const username = document.getElementById('regUsernameMain').value.trim();
+            const phone = document.getElementById('regPhoneMain').value.trim();
+            const password = document.getElementById('regPasswordMain').value;
+            const password2 = document.getElementById('regPassword2Main').value;
+            const errorEl = document.getElementById('registerErrorMain');
+            errorEl.style.display = 'none';
+            if (!username || !phone || !password) {
+                errorEl.textContent = '请填写完整信息';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (username.length < 3 || username.length > 20) {
+                errorEl.textContent = '用户名长度需在3-20个字符之间';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!/^1[3-9]\d{9}$/.test(phone)) {
+                errorEl.textContent = '请输入正确的手机号格式';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errorEl.textContent = '密码长度不能少于6位';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (password !== password2) {
+                errorEl.textContent = '两次输入的密码不一致';
+                errorEl.style.display = 'block';
+                return;
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/user/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, phone, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.data;
+                    localStorage.setItem('yisui_user', JSON.stringify(currentUser));
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('loginBtn').textContent = currentUser.username || '已登录';
+                    showToast('注册成功，已自动登录！');
+                } else {
+                    errorEl.textContent = data.message || '注册失败';
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                errorEl.textContent = '网络错误：' + e.message;
+                errorEl.style.display = 'block';
+            }
         }
 
         // 页面加载时检查登录状态
@@ -841,6 +1121,13 @@
         function clearAllSessions() { if (!confirm('删除所有对话？不可恢复！')) return; if (isProcessing) { showToast('请稍候'); return; } sessions = {}; sessionOrder = []; saveSessions(); currentSessionId = null; createNewSession(); renderSessionList(); showToast('已清除所有'); }
         function toggleSidebar(open) { const s = document.getElementById('sidebar'); const o = document.getElementById('sidebarOverlay'); if (!s || !o) return; if (open) { s.classList.add('open'); o.classList.add('show'); } else { s.classList.remove('open'); o.classList.remove('show'); } }
         document.addEventListener('DOMContentLoaded', function() {
+            // 强制登录检查
+            if (!currentUser || !currentUser.token) {
+                document.getElementById('loginOverlay').classList.remove('hidden');
+            } else {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('loginBtn').textContent = currentUser.username || '已登录';
+            }
             applyBackground();
             const valid = new Set(Object.keys(sessions)); sessionOrder = sessionOrder.filter(id => valid.has(id));
             if (sessionOrder.length === 0 && Object.keys(sessions).length > 0) sessionOrder = Object.keys(sessions); saveSessions();
