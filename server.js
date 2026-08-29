@@ -323,6 +323,155 @@ app.get('/health', (req, res) => {
   });
 });
 
+// ============ 管理员后台 API ============
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_TOKENS = new Map(); // token -> expireTime
+
+// 生成简单 token
+function generateToken() {
+  const token = Buffer.from(Date.now() + '_' + Math.random()).toString('base64').replace(/=/g, '');
+  ADMIN_TOKENS.set(token, Date.now() + 12 * 60 * 60 * 1000); // 12小时有效
+  return token;
+}
+
+// 验证 token 中间件
+function authAdmin(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || !ADMIN_TOKENS.has(token)) {
+    return res.status(401).json({ success: false, message: '未登录或登录已过期' });
+  }
+  const expireTime = ADMIN_TOKENS.get(token);
+  if (Date.now() > expireTime) {
+    ADMIN_TOKENS.delete(token);
+    return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+  }
+  next();
+}
+
+// 管理员登录
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, message: '请输入密码' });
+    }
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ success: false, message: '密码错误' });
+    }
+    const token = generateToken();
+    res.json({ success: true, token, message: '登录成功' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 获取统计数据
+app.get('/api/admin/stats', authAdmin, (req, res) => {
+  try {
+    const cards = readCards();
+    const totalCards = cards.length;
+    const usedCards = cards.filter(c => c.used).length;
+    const availableModels = getAvailableModels();
+    const providers = {};
+    for (const config of Object.values(MODEL_CONFIG)) {
+      if (!providers[config.provider]) {
+        providers[config.provider] = {
+          configured: !!getModelApiKey(config),
+          envVar: config.apiKeyEnv
+        };
+      }
+    }
+    res.json({
+      success: true,
+      data: {
+        totalCards,
+        usedCards,
+        availableCards: totalCards - usedCards,
+        totalModels: Object.keys(MODEL_CONFIG).length,
+        availableModels: availableModels.length,
+        models: availableModels,
+        providers,
+        version: '1.1.0',
+        uptime: process.uptime()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 获取所有卡密
+app.get('/api/admin/cards', authAdmin, (req, res) => {
+  try {
+    const cards = readCards();
+    // 按创建时间倒序
+    const sorted = cards.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    res.json({ success: true, data: sorted });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 生成卡密（支持批量）
+app.post('/api/admin/cards', authAdmin, (req, res) => {
+  try {
+    const { count = 1, prefix = 'YS' } = req.body;
+    const num = Math.min(parseInt(count) || 1, 100); // 最多一次生成100个
+    const cards = readCards();
+    const newCards = [];
+    for (let i = 0; i < num; i++) {
+      const key = prefix + '-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const card = {
+        key,
+        used: false,
+        createdAt: new Date().toISOString()
+      };
+      cards.push(card);
+      newCards.push(card);
+    }
+    writeCards(cards);
+    res.json({ success: true, message: `成功生成 ${num} 个卡密`, data: newCards });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 删除卡密
+app.delete('/api/admin/cards/:key', authAdmin, (req, res) => {
+  try {
+    const { key } = req.params;
+    const cards = readCards();
+    const index = cards.findIndex(c => c.key === key);
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: '卡密不存在' });
+    }
+    cards.splice(index, 1);
+    writeCards(cards);
+    res.json({ success: true, message: '卡密已删除' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// 清空已使用的卡密
+app.post('/api/admin/cards/clean', authAdmin, (req, res) => {
+  try {
+    const cards = readCards();
+    const beforeCount = cards.length;
+    const remaining = cards.filter(c => !c.used);
+    const deleted = beforeCount - remaining.length;
+    writeCards(remaining);
+    res.json({ success: true, message: `已清理 ${deleted} 个已使用的卡密`, remaining: remaining.length });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
 // ============ 启动服务 ============
 app.listen(PORT, () => {
   const availableModels = getAvailableModels();
