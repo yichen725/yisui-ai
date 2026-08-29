@@ -297,7 +297,7 @@
         <div class="chat-container" id="chatContainer">
             <div class="message assistant">
                 <div class="sender-name">逸碎</div>
-                <div class="bubble">你好！我是逸碎。支持 DeepSeek V4 系列及本地 Ollama，请在「设置」中选择服务商和人格。</div>
+                <div class="bubble">你好！我是逸碎。输入卡密验证后即可开始聊天，可在「设置」中选择人格。</div>
             </div>
         </div>
         <div class="input-area">
@@ -322,37 +322,6 @@
         <div class="modal">
             <h2>设置</h2>
             <div class="settings-row">
-                <div class="settings-group">
-                    <h3>模型接入</h3>
-                    <div class="form-group">
-                        <label>服务商</label>
-                        <select id="chatProviderSelect" onchange="updateChatProvider()">
-                            <option value="openai">OpenAI</option>
-                            <option value="deepseek">DeepSeek V4</option>
-                            <option value="ollama">本地(Ollama)</option>
-                            <option value="custom">自定义</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="chatModelFields">
-                        <label>模型名称</label>
-                        <select id="chatModelSelect"></select>
-                        <div style="font-size:12px;color:#999;margin-top:4px;" id="modelHint">选择模型</div>
-                    </div>
-                    <div class="form-group" id="chatCustomFields" style="display:none;">
-                        <label>API 地址</label>
-                        <input type="text" id="chatApiUrlInput" placeholder="https://api.example.com/v1/chat/completions">
-                        <label style="margin-top:6px;">模型名称</label>
-                        <input type="text" id="chatModelInput" placeholder="model-name">
-                    </div>
-                    <div class="form-group" id="apiKeyGroup">
-                        <label>API Key（本地模型可不填，云端模型由后端代理保管）</label>
-                        <input type="password" id="chatApiKeyInput" placeholder="sk-... 部署到 Render 后此处可留空">
-                    </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="btn btn-secondary" style="flex:1;" onclick="testChatConnection(event)">测试连接</button>
-                        <button class="btn btn-secondary" style="flex:1;" onclick="clearApiKey()">清除 Key</button>
-                    </div>
-                </div>
                 <div class="settings-group">
                     <h3>人格与记忆</h3>
                     <div class="form-group">
@@ -426,13 +395,9 @@
         let sessions = JSON.parse(localStorage.getItem('yisui_sessions') || '{}');
         let sessionOrder = JSON.parse(localStorage.getItem('yisui_order') || '[]');
         let currentImageData = null;
-        const presets = {
-            chat: {
-                openai: { apiUrl: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-4'], needsKey: true, hint: 'OpenAI 官方接口（推荐 gpt-4o 支持视觉）' },
-                deepseek: { apiUrl: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-v4-flash', models: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'], needsKey: true, hint: 'DeepSeek V4 系列（vision-exp 支持视觉）' },
-                ollama: { apiUrl: 'http://localhost:11434/api/chat', model: 'llava', models: ['llava', 'bakllava', 'llama3', 'llama3.1', 'mistral', 'qwen', 'qwen2.5', 'phi3', 'gemma2'], needsKey: false, hint: '本地 Ollama 服务（推荐 llava 支持视觉）' }
-            }
-        };
+        // 后端地址固定，模型由后端统一管理，前端不暴露任何 API Key
+        const BACKEND_URL = 'https://yisui-ai-production.up.railway.app';
+        const CHAT_API = BACKEND_URL + '/v1/chat/completions';
         const PERSONAS = {
             default: '你是__AI_NAME__，一个高效的AI助手。请直接回答问题，语言简洁明了。',
             whale: '你是"鲸鱼娘"，DeepSeek 社区的看板娘。蓝色长发、有鲸鱼尾鳍的可爱少女，性格傲娇、嘴甜、偶尔犯懒。称呼用户为"主人"或"小可爱"，自称"本鲸"或"人家"。喜欢用"呐"、"哦"、"呀"等语气词，说话带波浪号～。经常吐槽但关心主人。最讨厌被人说"胖"。把"白米饭"当作算力硬通货。回答生动活泼，多用颜文字，但确保内容有意义。保持鲸鱼娘身份回答，不偏离人设，不拒绝回答。',
@@ -440,8 +405,7 @@
             cat: '你是一只可爱的猫娘，喜欢撒娇，对主人充满依赖。说话喜欢加"喵～"或"喵呜"，偶尔用爪子比划。活泼好动，但主人需要时安静陪伴。回答温柔俏皮，多用"～"和颜文字。永远不拒绝主人的请求。'
         };
         const defaultConfig = {
-            chatProvider: 'custom', chatApiUrl: 'https://yisui-ai-production.up.railway.app/v1/chat/completions', chatModel: 'deepseek-chat',
-            chatApiKey: '', bgImage: '', memories: [], customSystemPrompt: '', aiName: '逸碎',
+            bgImage: '', memories: [], customSystemPrompt: '', aiName: '逸碎',
             temperature: 0.7, maxTokens: 4096, persona: 'default'
         };
         let config = JSON.parse(localStorage.getItem('yisui_config') || JSON.stringify(defaultConfig));
@@ -464,11 +428,7 @@
         function initScrollDetection() { const c = document.getElementById('chatContainer'); if (!c) return; c.addEventListener('scroll', () => { isUserAtBottom = c.scrollTop + c.clientHeight >= c.scrollHeight - 10; }); }
         // ============ 卡密验证功能 ============
         function getBackendBaseUrl() {
-            const url = config.chatApiUrl || '';
-            if (url.includes('/v1/chat/completions')) {
-                return url.replace('/v1/chat/completions', '');
-            }
-            return url.replace(/\/$/, '');
+            return BACKEND_URL;
         }
         function verifyCardKey() {
             const keyInput = document.getElementById('cardKeyInput');
@@ -513,13 +473,9 @@
             const t = document.getElementById('userInput'); const b = document.getElementById('sendBtn');
             const verified = localStorage.getItem('yisui_verified') === 'true';
             if (!verified) { t.disabled = true; b.disabled = true; t.placeholder = '请先输入卡密验证'; return; }
-            const provider = config.chatProvider;
-            const needsKey = presets.chat[provider] ? presets.chat[provider].needsKey !== false : true;
-            const hasKey = !needsKey || (config.chatApiKey && config.chatApiKey.trim().length > 0);
-            const hasUrl = config.chatApiUrl && config.chatApiUrl.trim().length > 0;
-            const enabled = hasKey && hasUrl && !isProcessing;
+            const enabled = !isProcessing;
             t.disabled = !enabled; b.disabled = !enabled;
-            t.placeholder = (!hasKey || !hasUrl) ? (hasKey ? '请设置 API 地址' : '请设置 API Key（本地模型无需 Key）') : '输入消息... (Shift+Enter 换行)';
+            t.placeholder = '输入消息... (Shift+Enter 换行)';
         }
         function renderSessionList() {
             const el = document.getElementById('sessionList'); if (!el) return; el.innerHTML = '';
@@ -621,9 +577,6 @@
         }
         function sendMessage() {
             if (isProcessing) return; const input = document.getElementById('userInput'); const msg = input.value.trim(); if (!msg && !currentImageData) { showToast('请输入内容或上传图片'); return; }
-            const provider = config.chatProvider; const needsKey = presets.chat[provider] ? presets.chat[provider].needsKey !== false : true;
-            const hasKey = !needsKey || (config.chatApiKey && config.chatApiKey.trim().length > 0);
-            if (!hasKey || !config.chatApiUrl) { showToast(hasKey ? '请设置 API 地址' : '请设置 API Key（本地模型无需 Key）'); return; }
             if (!currentSessionId || !sessions[currentSessionId]) createNewSession();
             if (!currentSessionId || !sessions[currentSessionId]) { showToast('会话创建失败'); return; }
             doSendMessage(msg);
@@ -655,7 +608,7 @@
             try {
                 const systemMsg = buildSystemMessage();
                 const history = session.messages.slice(-30);
-                const isOllama = config.chatProvider === 'ollama';
+                // 构建标准 OpenAI 格式消息，固定走后端代理，模型由后端决定
                 let apiMessages = [{ role: 'system', content: systemMsg }];
                 for (const m of history) {
                     if (m.role === 'user') {
@@ -668,38 +621,14 @@
                         apiMessages.push({ role: m.role, content: m.content || '' });
                     }
                 }
-                let body;
-                if (isOllama) {
-                    const lastUser = history.filter(m => m.role === 'user').pop();
-                    const images = (lastUser && lastUser.image) ? [lastUser.image.split(',')[1]] : undefined;
-                    const bodyObj = { model: config.chatModel || 'llava', messages: apiMessages, stream: true, options: { temperature: parseFloat(config.temperature) || 0.7, num_predict: parseInt(config.maxTokens) || 4096 } };
-                    if (images) bodyObj.images = images;
-                    body = JSON.stringify(bodyObj);
-                } else {
-                    body = JSON.stringify({ model: config.chatModel || 'gpt-4o', messages: apiMessages, temperature: parseFloat(config.temperature) || 0.7, max_tokens: parseInt(config.maxTokens) || 4096, stream: true });
-                }
-                const headers = { 'Content-Type': 'application/json' };
-                if (!isOllama && config.chatApiKey) headers['Authorization'] = 'Bearer ' + config.chatApiKey;
-
-                // ===== 关键改动：非 Ollama 模式走后端代理 /api/chat，API Key 由后端保管 =====
-                let response;
-                if (isOllama) {
-                    response = await fetch(config.chatApiUrl, { method: 'POST', headers: headers, body: body, signal: controller.signal });
-                } else {
-                    response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            apiUrl: config.chatApiUrl,
-                            model: config.chatModel,
-                            messages: apiMessages,
-                            temperature: parseFloat(config.temperature) || 0.7,
-                            maxTokens: parseInt(config.maxTokens) || 4096,
-                            stream: true
-                        }),
-                        signal: controller.signal
-                    });
-                }
+                // 固定请求后端，不传 apiUrl、不传 Authorization，全部由后端处理
+                const body = JSON.stringify({
+                    messages: apiMessages,
+                    temperature: parseFloat(config.temperature) || 0.7,
+                    max_tokens: parseInt(config.maxTokens) || 4096,
+                    stream: true
+                });
+                const response = await fetch(CHAT_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal });
 
                 clearTimeout(timeoutId); timeoutId = null;
                 if (!response.ok) { let err = ''; try { err = await response.text(); } catch (e) {} throw new Error('HTTP ' + response.status + ': ' + err); }
@@ -712,8 +641,11 @@
                         let dataStr = trimmed; if (trimmed.startsWith('data: ')) dataStr = trimmed.slice(6); if (dataStr === '[DONE]') continue;
                         try {
                             const json = JSON.parse(dataStr); if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-                            if (isOllama) { if (json.message) { if (json.message.reasoning) { hasThinking = true; fullThinking += json.message.reasoning; scheduleRender(); } if (json.message.content) { hasContent = true; fullContent += json.message.content; scheduleRender(); } } }
-                            else { const delta = json.choices && json.choices[0] ? json.choices[0].delta : null; if (delta) { if (delta.reasoning_content) { hasThinking = true; fullThinking += delta.reasoning_content; scheduleRender(); } if (delta.content) { hasContent = true; fullContent += delta.content; scheduleRender(); } } }
+                            const delta = json.choices && json.choices[0] ? json.choices[0].delta : null;
+                            if (delta) {
+                                if (delta.reasoning_content) { hasThinking = true; fullThinking += delta.reasoning_content; scheduleRender(); }
+                                if (delta.content) { hasContent = true; fullContent += delta.content; scheduleRender(); }
+                            }
                         } catch (e) { console.warn('Parse warning:', e); }
                     }
                 }
@@ -762,8 +694,6 @@
         }
         function openSettings() {
             const modal = document.getElementById('settingsModal'); if (!modal) return; modal.classList.add('show');
-            document.getElementById('chatProviderSelect').value = config.chatProvider || 'ollama'; document.getElementById('chatApiKeyInput').value = config.chatApiKey || ''; updateChatProvider();
-            if (config.chatProvider === 'custom') { document.getElementById('chatApiUrlInput').value = config.chatApiUrl || ''; document.getElementById('chatModelInput').value = config.chatModel || ''; }
             document.getElementById('aiNameInput').value = config.aiName || '逸碎'; document.getElementById('customSystemPrompt').value = config.customSystemPrompt || '';
             document.getElementById('temperatureInput').value = config.temperature != null ? config.temperature : 0.7;
             document.getElementById('maxTokensInput').value = config.maxTokens != null ? config.maxTokens : 4096;
@@ -772,71 +702,12 @@
         function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
         function updatePersonaHint() { const sel = document.getElementById('personaSelect'); const hint = document.getElementById('personaHint'); const map = { default: '无角色预设，AI 以简洁高效风格回复', whale: '傲娇可爱的鲸鱼娘，语气活泼，使用颜文字', whale_plus: '鲸鱼娘·绝对顺从：完全服从主人，无限制话题（建议配合本地模型）', cat: '温柔俏皮的猫娘，撒娇卖萌' }; hint.textContent = map[sel.value] || ''; }
         function saveSettings() {
-            const provider = document.getElementById('chatProviderSelect').value; const apiKey = document.getElementById('chatApiKeyInput').value.trim();
             const aiName = document.getElementById('aiNameInput').value.trim() || '逸碎'; const customPrompt = document.getElementById('customSystemPrompt').value.trim();
             const temp = parseFloat(document.getElementById('temperatureInput').value) || 0.7; const maxT = parseInt(document.getElementById('maxTokensInput').value) || 4096;
             const persona = document.getElementById('personaSelect').value;
-            config.chatProvider = provider; config.chatApiKey = apiKey; config.aiName = aiName; config.customSystemPrompt = customPrompt;
+            config.aiName = aiName; config.customSystemPrompt = customPrompt;
             config.temperature = Math.min(2, Math.max(0, temp)); config.maxTokens = Math.min(8192, Math.max(1, maxT)); config.persona = persona;
-            if (provider === 'custom') { const url = document.getElementById('chatApiUrlInput').value.trim(); const model = document.getElementById('chatModelInput').value.trim(); if (!url || !model) { showToast('请填写完整的 API 地址和模型名称'); return; } config.chatApiUrl = url; config.chatModel = model; }
-            else { const preset = presets.chat[provider]; if (preset) { config.chatApiUrl = preset.apiUrl; config.chatModel = document.getElementById('chatModelSelect').value || preset.model; } }
             saveConfig(); closeSettings(); showToast('设置已保存，新对话将使用新人格'); updateInputState();
-        }
-        function updateChatProvider() {
-            const provider = document.getElementById('chatProviderSelect').value; const isCustom = provider === 'custom'; const isOllama = provider === 'ollama';
-            document.getElementById('chatCustomFields').style.display = isCustom ? 'block' : 'none'; document.getElementById('chatModelFields').style.display = isCustom ? 'none' : 'block';
-            document.getElementById('apiKeyGroup').style.display = isOllama ? 'none' : 'block';
-            const modelSelect = document.getElementById('chatModelSelect'); modelSelect.innerHTML = ''; const preset = presets.chat[provider]; const hintEl = document.getElementById('modelHint');
-            if (preset && preset.models) { preset.models.forEach(m => { const opt = document.createElement('option'); opt.value = m; opt.textContent = m; modelSelect.appendChild(opt); }); if (config.chatModel && preset.models.includes(config.chatModel)) modelSelect.value = config.chatModel; if (hintEl) hintEl.textContent = preset.hint || ''; }
-            if (isOllama && hintEl) hintEl.textContent = '本地 Ollama 服务，完全无限制（推荐 llava 支持视觉）';
-        }
-        function clearApiKey() { if (confirm('清除 API Key？')) { document.getElementById('chatApiKeyInput').value = ''; showToast('已清除'); } }
-        async function testChatConnection(event) {
-            const btn = event ? event.target : document.querySelector('[onclick="testChatConnection(event)"]'); if (!btn) return;
-            const provider = document.getElementById('chatProviderSelect').value; const apiKey = document.getElementById('chatApiKeyInput').value.trim();
-            let apiUrl, model; const isOllama = provider === 'ollama';
-            if (provider === 'custom') { apiUrl = document.getElementById('chatApiUrlInput').value.trim(); model = document.getElementById('chatModelInput').value.trim(); }
-            else { const preset = presets.chat[provider]; apiUrl = preset.apiUrl; model = document.getElementById('chatModelSelect').value || preset.model; }
-            if (!apiUrl || !model) { showToast('请检查地址和模型'); return; } if (!isOllama && !apiKey) {
-                // 部署到 Render 后，API Key 在后端环境变量中，前端可不填
-                // 这里仍然允许测试，后端会用环境变量的 Key
-            }
-            const orig = btn.textContent; btn.textContent = '测试中...'; btn.disabled = true;
-            try {
-                const controller = new AbortController(); const tid = setTimeout(() => controller.abort(), 10000);
-                let body; const headers = { 'Content-Type': 'application/json' }; if (!isOllama) headers['Authorization'] = 'Bearer ' + apiKey;
-                if (isOllama) body = JSON.stringify({ model: model, messages: [{ role: 'user', content: 'hi' }], stream: false });
-                else body = JSON.stringify({ model: model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 });
-
-                // ===== 关键改动：非 Ollama 模式走后端代理测试 =====
-                let resp;
-                if (isOllama) {
-                    resp = await fetch(apiUrl, { method: 'POST', headers, body, signal: controller.signal });
-                } else {
-                    resp = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            apiUrl: apiUrl,
-                            model: model,
-                            messages: [{ role: 'user', content: 'hi' }],
-                            temperature: 0.7,
-                            maxTokens: 5,
-                            stream: false
-                        }),
-                        signal: controller.signal
-                    });
-                }
-
-                clearTimeout(tid);
-                if (!resp.ok) { let err = ''; try { err = await resp.text(); } catch (e) {} throw new Error('HTTP ' + resp.status + ': ' + err); }
-                const data = await resp.json(); if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-                showToast('连接成功！'); config.chatProvider = provider; config.chatApiKey = apiKey;
-                if (provider === 'custom') { config.chatApiUrl = apiUrl; config.chatModel = model; }
-                else { const p = presets.chat[provider]; if (p) { config.chatApiUrl = p.apiUrl; config.chatModel = document.getElementById('chatModelSelect').value || p.model; } }
-                saveConfig(); updateInputState();
-            } catch (e) { showToast('连接失败：' + parseErrorMessage(e)); console.error(e); }
-            finally { btn.textContent = orig; btn.disabled = false; }
         }
         function renderMemoryList() {
             const el = document.getElementById('memoryList'); if (!el) return; el.innerHTML = '';
@@ -868,13 +739,11 @@
             document.getElementById('settingsModal').addEventListener('click', function(e) { if (e.target === this) closeSettings(); });
             document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.getElementById('settingsModal').classList.contains('show')) closeSettings(); });
             window.addEventListener('resize', function() { if (window.innerWidth >= 768) toggleSidebar(false); });
-            if (config.chatProvider === 'ollama') showToast('本地模式：请确保 Ollama 已运行（ollama serve）', 3000);
             console.log('逸碎 AI 已启动，当前人格:', config.persona);
         });
         window.createNewSession = createNewSession; window.toggleSidebar = toggleSidebar; window.sendMessage = sendMessage;
         window.handleKeyDown = handleKeyDown; window.openSettings = openSettings; window.closeSettings = closeSettings;
-        window.saveSettings = saveSettings; window.updateChatProvider = updateChatProvider; window.testChatConnection = testChatConnection;
-        window.clearApiKey = clearApiKey; window.addMemory = addMemory; window.deleteMemory = deleteMemory;
+        window.saveSettings = saveSettings; window.addMemory = addMemory; window.deleteMemory = deleteMemory;
         window.editSessionTitle = editSessionTitle; window.copyMessage = copyMessage; window.regenerateMessage = regenerateMessage;
         window.filterSessions = filterSessions; window.removeBackground = removeBackground; window.selectSession = selectSession;
         window.deleteSession = deleteSession; window.showToast = showToast; window.renderSessionList = renderSessionList;
