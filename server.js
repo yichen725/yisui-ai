@@ -323,6 +323,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// ============ 静态文件服务（前端页面） ============
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'app.html'));
+});
+app.get('/app.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'app.html'));
+});
+app.get('/download.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'download.html'));
+});
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // ============ 启动服务 ============
 app.listen(PORT, () => {
   const availableModels = getAvailableModels();
