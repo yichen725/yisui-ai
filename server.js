@@ -286,9 +286,9 @@ app.post('/verify', (req, res) => {
 // ============ 接口 2.5：用户注册 ============
 app.post('/api/user/register', (req, res) => {
   try {
-    const { username, password, email } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    const { username, password, phone, email } = req.body;
+    if (!username || !password || !phone) {
+      return res.status(400).json({ success: false, message: '用户名、密码和手机号不能为空' });
     }
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ success: false, message: '用户名长度需在3-20个字符之间' });
@@ -296,9 +296,17 @@ app.post('/api/user/register', (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: '密码长度不能少于6位' });
     }
+    // 手机号格式验证（中国大陆手机号）
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ success: false, message: '请输入正确的手机号格式' });
+    }
     const users = readUsers();
     if (users.find(u => u.username === username)) {
       return res.status(400).json({ success: false, message: '用户名已存在' });
+    }
+    if (users.find(u => u.phone === phone)) {
+      return res.status(400).json({ success: false, message: '该手机号已被注册' });
     }
     const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const token = generateUserToken(userId);
@@ -306,6 +314,7 @@ app.post('/api/user/register', (req, res) => {
       id: userId,
       username: username,
       password: hashPassword(password),
+      phone: phone,
       email: email || '',
       token: token,
       createdAt: new Date().toISOString(),
@@ -320,6 +329,7 @@ app.post('/api/user/register', (req, res) => {
       data: {
         userId: userId,
         username: username,
+        phone: phone,
         token: token
       }
     });
