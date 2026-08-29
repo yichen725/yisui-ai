@@ -296,8 +296,8 @@ const verificationCodes = new Map(); // phone/email -> { code, expireAt }
 //   EMAIL_FROM_NAME     - 发件人名称（如"逸碎AI"）
 const EMAIL_CONFIG = {
   host: process.env.EMAIL_SMTP_HOST || 'smtp.qq.com',
-  port: parseInt(process.env.EMAIL_SMTP_PORT) || 465,
-  secure: true,
+  port: parseInt(process.env.EMAIL_SMTP_PORT) || 587,
+  secure: false, // 587端口用STARTTLS
   user: process.env.EMAIL_USER || '',
   pass: process.env.EMAIL_PASS || '',
   fromName: process.env.EMAIL_FROM_NAME || '逸碎AI'
@@ -366,9 +366,7 @@ async function sendEmailCode(email, code) {
   } catch (error) {
     console.error('[邮件] 发送异常:', error.message);
     console.error('[邮件] 错误详情:', error.stack);
-    // 降级方案：邮件发送失败时，使用模拟模式返回验证码
-    console.log('[邮件] 邮件发送失败，降级为模拟模式');
-    return { success: true, mock: true, code: code, error: error.message };
+    return { success: false, message: error.message };
   }
 }
 
@@ -488,15 +486,12 @@ app.post('/api/user/send-code', async (req, res) => {
     verificationCodes.set(contact, { code, expireAt });
     console.log(`[验证码] ${isPhone ? '手机号' : '邮箱'}: ${contact}, 验证码: ${code}`);
     
-    // 发送验证码（带超时保护）
+    // 发送验证码
     let sendResult;
-    const sendPromise = isPhone ? sendSmsCode(phone, code) : sendEmailCode(email, code);
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => resolve({ success: true, mock: true, code: code, timeout: true }), 25000);
-    });
-    sendResult = await Promise.race([sendPromise, timeoutPromise]);
-    if (sendResult.timeout) {
-      console.log('[验证码] 发送超时，降级为模拟模式');
+    if (isPhone) {
+      sendResult = await sendSmsCode(phone, code);
+    } else {
+      sendResult = await sendEmailCode(email, code);
     }
     
     if (sendResult.success) {
