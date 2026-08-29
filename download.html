@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>逸碎AI - 下载</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2329;
+            margin-bottom: 8px;
+        }
+
+        .info {
+            font-size: 14px;
+            color: #646a73;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .progress-box {
+            background: #f5f6f7;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: #3370ff;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e6eb;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3370ff, #5b8def);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: #3370ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2860e1;
+        }
+
+        .btn-secondary {
+            background: #f5f6f7;
+            color: #1f2329;
+        }
+
+        .btn-secondary:hover {
+            background: #e8eaed;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e5e6eb;
+        }
+
+        .divider span {
+            padding: 0 12px;
+        }
+
+        .backup-links {
+            text-align: left;
+        }
+
+        .backup-links a {
+            display: block;
+            padding: 10px 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e6eb;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #3370ff;
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .backup-links a:hover {
+            border-color: #3370ff;
+            background: #f0f5ff;
+        }
+
+        .tip {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #999;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: #3370ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">📱</div>
+        <h1>逸碎AI APP 下载</h1>
+        <p class="info">版本 v1.0.0 · 大小 5.7MB · 支持 Android 5.0+</p>
+
+        <div class="progress-box" id="progressBox">
+            <div class="progress-text" id="progressText">正在准备下载...</div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <a href="https://yichen725.github.io/yisui-ai/yisui-ai-v1.0.apk" class="btn btn-primary" id="mainDownload" download>
+            立即下载
+        </a>
+
+        <div class="divider"><span>备用线路</span></div>
+
+        <div class="backup-links">
+            <a href="https://raw.githubusercontent.com/yichen725/yisui-ai/main/yisui-ai-v1.0.apk" download>
+                线路2：GitHub Raw
+            </a>
+            <a href="https://cdn.jsdelivr.net/gh/yichen725/yisui-ai@main/yisui-ai-v1.0.apk" download>
+                线路3：jsDelivr CDN
+            </a>
+        </div>
+
+        <p class="tip">
+            如果下载很慢或失败，请点击上方备用线路尝试。<br>
+            下载完成后点击安装，如提示"未知来源"请在设置中允许。
+        </p>
+
+        <a href="index.html" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        // 页面加载后自动开始下载
+        window.onload = function() {
+            setTimeout(function() {
+                const progressText = document.getElementById('progressText');
+                progressText.textContent = '下载已开始，请查看浏览器下载列表...';
+
+                // 自动触发下载
+                const link = document.createElement('a');
+                link.href = 'https://yichen725.github.io/yisui-ai/yisui-ai-v1.0.apk';
+                link.download = '逸碎AI-v1.0.apk';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // 3秒后隐藏进度条
+                setTimeout(function() {
+                    const progressBox = document.getElementById('progressBox');
+                    progressBox.style.opacity = '0.5';
+                    progressText.textContent = '如未自动下载，请点击上方按钮';
+                }, 3000);
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
