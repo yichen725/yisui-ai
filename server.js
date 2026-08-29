@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 3000;
 const CARDS_FILE = path.join(__dirname, 'cards.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
 const CHATS_FILE = path.join(__dirname, 'chats.json');
+const USER_DATA_FILE = path.join(__dirname, 'user_data.json');
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'deepseek-v4-pro';
 
 // 中间件
@@ -190,6 +191,42 @@ function writeUsers(users) {
     console.error('写入用户文件失败:', e.message);
     return false;
   }
+}
+
+// ============ 用户数据读写函数（聊天记录、设置、记忆等） ============
+function readAllUserData() {
+  try {
+    if (!fs.existsSync(USER_DATA_FILE)) return {};
+    const data = fs.readFileSync(USER_DATA_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('读取用户数据文件失败:', e.message);
+    return {};
+  }
+}
+
+function writeAllUserData(data) {
+  try {
+    fs.writeFileSync(USER_DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('写入用户数据文件失败:', e.message);
+    return false;
+  }
+}
+
+function getUserData(userId) {
+  const allData = readAllUserData();
+  return allData[userId] || null;
+}
+
+function saveUserData(userId, userData) {
+  const allData = readAllUserData();
+  allData[userId] = {
+    ...userData,
+    updatedAt: new Date().toISOString()
+  };
+  return writeAllUserData(allData);
 }
 
 // 简单的密码哈希（生产环境建议用 bcrypt）
@@ -630,6 +667,60 @@ app.get('/api/user/info', (req, res) => {
     });
   } catch (error) {
     console.error('获取用户信息出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 接口 2.8：获取用户数据（聊天记录、设置、记忆等） ============
+app.get('/api/user/data', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+    if (!token) {
+      return res.status(401).json({ success: false, message: '未登录' });
+    }
+    const users = readUsers();
+    const user = users.find(u => u.token === token);
+    if (!user) {
+      return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+    }
+    const userData = getUserData(user.id);
+    return res.json({
+      success: true,
+      data: userData || {},
+      userId: user.id
+    });
+  } catch (error) {
+    console.error('获取用户数据出错:', error);
+    return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
+  }
+});
+
+// ============ 接口 2.9：保存用户数据（聊天记录、设置、记忆等） ============
+app.post('/api/user/data', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.body.token;
+    if (!token) {
+      return res.status(401).json({ success: false, message: '未登录' });
+    }
+    const users = readUsers();
+    const user = users.find(u => u.token === token);
+    if (!user) {
+      return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+    }
+    const userData = req.body.data || {};
+    // 限制数据大小，防止存储过大
+    const dataStr = JSON.stringify(userData);
+    if (dataStr.length > 5 * 1024 * 1024) { // 5MB 限制
+      return res.status(400).json({ success: false, message: '数据过大，超过5MB限制' });
+    }
+    const result = saveUserData(user.id, userData);
+    if (result) {
+      return res.json({ success: true, message: '数据保存成功' });
+    } else {
+      return res.status(500).json({ success: false, message: '数据保存失败' });
+    }
+  } catch (error) {
+    console.error('保存用户数据出错:', error);
     return res.status(500).json({ success: false, message: '服务器错误：' + error.message });
   }
 });
