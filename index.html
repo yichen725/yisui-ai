@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>逸碎 - AI 智能助手</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3370ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="逸碎AI">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
@@ -713,6 +719,19 @@
             document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.getElementById('settingsModal').classList.contains('show')) closeSettings(); });
             window.addEventListener('resize', function() { if (window.innerWidth >= 768) toggleSidebar(false); });
             console.log('逸碎 AI 已启动，当前人格:', config.persona);
+            
+            // 注册 Service Worker（PWA 离线支持）
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(function(registration) {
+                            console.log('ServiceWorker 注册成功:', registration.scope);
+                        })
+                        .catch(function(err) {
+                            console.log('ServiceWorker 注册失败:', err);
+                        });
+                });
+            }
         });
         window.createNewSession = createNewSession; window.toggleSidebar = toggleSidebar; window.sendMessage = sendMessage;
         window.handleKeyDown = handleKeyDown; window.openSettings = openSettings; window.closeSettings = closeSettings;
