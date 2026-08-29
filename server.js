@@ -413,8 +413,6 @@ app.post('/api/user/register', (req, res) => {
     if (!username || !password || !phone || !code) {
       return res.status(400).json({ success: false, message: '用户名、密码、手机号和验证码不能为空' });
     }
-      return res.status(400).json({ success: false, message: '用户名、密码和手机号不能为空' });
-    }
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ success: false, message: '用户名长度需在3-20个字符之间' });
     }
