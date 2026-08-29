@@ -278,6 +278,12 @@
             display: flex; align-items: center; justify-content: center; padding: 0 5px; font-weight: 600;
         }
         .main { position: relative; }
+        /* 流式输出光标 */
+        .stream-cursor {
+            display: inline-block; width: 2px; height: 1em; background: var(--primary);
+            margin-left: 2px; vertical-align: text-bottom; animation: cursorBlink 1s infinite;
+        }
+        @keyframes cursorBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
     </style>
 </head>
 <body>
@@ -415,10 +421,14 @@
         function scrollToBottom(force) {
             const c = document.getElementById('chatContainer'); if (!c) return;
             if (!force && !isUserAtBottom) return;
-            // 平滑滚动到底部
-            c.scrollTo({ top: c.scrollHeight, behavior: force ? 'smooth' : 'auto' });
-            // 滚动后清除未读计数
-            if (force) { unreadCount = 0; updateScrollBadge(); }
+            if (force) {
+                // 用户主动点击/发送消息：平滑滚动
+                c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
+                unreadCount = 0; updateScrollBadge();
+            } else {
+                // AI流式输出：直接瞬间滚动，避免平滑滚动带来的延迟和拖拽感
+                c.scrollTop = c.scrollHeight;
+            }
         }
         function updateScrollBadge() {
             const btn = document.getElementById('scrollBottomBtn');
@@ -666,7 +676,7 @@
             container.appendChild(msgDiv); scrollToBottom(true);
             const thinkingBox = msgDiv.querySelector('.thinking-box'); const contentDiv = msgDiv.querySelector('.stream-content');
             let fullContent = '', fullThinking = '', hasThinking = false, hasContent = false, renderTimer = null;
-            const scheduleRender = () => { if (renderTimer) return; renderTimer = setTimeout(() => { renderTimer = null; if (!contentDiv || !contentDiv.isConnected) return; try { if (hasThinking && thinkingBox) { thinkingBox.style.display = 'block'; thinkingBox.textContent = fullThinking; } else if (thinkingBox) thinkingBox.style.display = 'none'; let display = fullContent || (hasThinking ? '（思考中...）' : ''); if (display) { const clean = DOMPurify.sanitize(display); contentDiv.innerHTML = marked.parse(clean); contentDiv.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} }); } else contentDiv.innerHTML = ''; if (!isUserAtBottom && (hasContent || hasThinking)) { unreadCount = Math.min(unreadCount + 1, 99); } scrollToBottom(false); updateScrollBadge(); } catch (e) {} }, 60); };
+            const scheduleRender = () => { if (renderTimer) return; renderTimer = setTimeout(() => { renderTimer = null; if (!contentDiv || !contentDiv.isConnected) return; requestAnimationFrame(() => { try { if (hasThinking && thinkingBox) { thinkingBox.style.display = 'block'; thinkingBox.textContent = fullThinking; } else if (thinkingBox) thinkingBox.style.display = 'none'; let display = fullContent || (hasThinking ? '（思考中...）' : ''); if (display) { const clean = DOMPurify.sanitize(display); contentDiv.innerHTML = marked.parse(clean); const cursor = document.createElement('span'); cursor.className = 'stream-cursor'; contentDiv.appendChild(cursor); contentDiv.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} }); } else contentDiv.innerHTML = ''; if (!isUserAtBottom && (hasContent || hasThinking)) { unreadCount = Math.min(unreadCount + 1, 99); } scrollToBottom(false); updateScrollBadge(); } catch (e) {} }); }, 20); };
             try {
                 const systemMsg = buildSystemMessage();
                 const history = session.messages.slice(-30);
