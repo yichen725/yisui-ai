@@ -467,6 +467,8 @@
         if (typeof config.customSystemPrompt !== 'string') config.customSystemPrompt = '';
         if (!config.aiName) config.aiName = '逸碎';
         if (!config.persona) config.persona = 'default';
+        // 用户未主动设置背景时，自动加载默认背景
+        if (!config.bgImage && defaultConfig.bgImage) config.bgImage = defaultConfig.bgImage;
         let searchQuery = '';
         function generateMessageId() { return 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8); }
         function escapeHtml(text) { if (!text) return ''; const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
